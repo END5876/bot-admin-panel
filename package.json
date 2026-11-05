@@ -1,0 +1,16 @@
+{
+  "name": "admin-panel",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Discord Bot 管理面板：一個網頁管理多隻 Bot（Mousebot、mousebot-lite…），登入與操作紀錄集中在這裡，設定經由各 Bot 的管理 API 執行",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test \"test/*.test.js\"",
+    "check": "node --check server.js && npm test"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "ISC"
+}
