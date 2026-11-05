@@ -26,6 +26,7 @@
 //   GET  /api/audit              操作紀錄（?bot=代號 只看那隻 Bot）
 //   *    /api/bots/<代號>/<路徑> 轉發到那隻 Bot 的 /api/<路徑>
 
+const crypto = require('crypto');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -46,6 +47,22 @@ const LOGIN_BODY_BYTES = 2 * 1024;
 // 所有寫入請求都要帶這個 header（CSRF 防護，見 lib/auth.js）
 const CSRF_HEADER = 'x-mousebot-admin';
 const BOT_PATH_RE = /^\/api\/bots\/([a-z0-9-]+)(\/.*)$/;
+
+// 網頁版本：public/ 所有檔案內容的雜湊（啟動時算一次）。網頁定期從 /api/bots 拿到它，
+// 和自己載入時的不同＝面板部署了新版：換頁時自動重新載入，不會繼續跑記憶體裡的舊版頁面
+function computePanelVersion(dir = PUBLIC_DIR) {
+  const hash = crypto.createHash('sha256');
+  const walk = (d) => {
+    for (const name of fs.readdirSync(d).sort()) {
+      const file = path.join(d, name);
+      if (fs.statSync(file).isDirectory()) walk(file);
+      else hash.update(path.relative(dir, file)).update('\0').update(fs.readFileSync(file)).update('\0');
+    }
+  };
+  try { walk(dir); } catch { return 'unknown'; }
+  return hash.digest('hex').slice(0, 12);
+}
+const PANEL_VERSION = computePanelVersion();
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -243,7 +260,7 @@ async function handleApi(req, res, url, { auth, bots }) {
 
   if (url.pathname === '/api/bots') {
     if (req.method !== 'GET') throw new HttpError(405, '不支援的方法');
-    sendJson(res, 200, { bots: await Promise.all(bots.map(fetchInfo)) });
+    sendJson(res, 200, { bots: await Promise.all(bots.map(fetchInfo)), panelVersion: PANEL_VERSION });
     return;
   }
 

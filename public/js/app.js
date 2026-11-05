@@ -5,7 +5,7 @@
 
 import { fill, h, icon, logo } from './dom.js';
 import { api, setCurrentBot, setUnauthorizedHandler } from './api.js';
-import { avatar, confirmDialog, toastError } from './ui.js';
+import { avatar, confirmDialog, toast, toastError } from './ui.js';
 import overview from './pages/overview.js';
 import responses from './pages/responses.js';
 import prompts from './pages/prompts.js';
@@ -62,6 +62,9 @@ let shell = null;      // { app, nav, tabbar, moreBtn, title, sub, actions, cont
 let current = null;    // { key, id, bot, ctx }
 let suppressHash = false;
 let bots = [];         // GET /api/bots：[{ id, online, features, ready, ping, bot, error }]
+// 面板的網頁版本（/api/bots 的 panelVersion）：和載入時不同＝部署了新版，換頁時重新載入整個網頁
+let panelVersion = null;
+let outdated = false;
 let currentBot = null; // 代號
 
 // ════════════════════════════════════════════════════════
@@ -288,7 +291,14 @@ function paintBots() {
 }
 
 async function loadBots() {
-  bots = (await api.get('/api/bots')).bots;
+  const res = await api.get('/api/bots');
+  bots = res.bots;
+  if (!res.panelVersion) return;
+  if (!panelVersion) panelVersion = res.panelVersion;
+  else if (res.panelVersion !== panelVersion && !outdated) {
+    outdated = true;
+    toast('管理面板已更新，切換頁面時會自動載入新版', { type: 'info' });
+  }
 }
 
 async function refreshBots() {
@@ -381,6 +391,12 @@ async function route() {
     return;
   }
 
+  // 面板部署了新版：記憶體裡的頁面程式是舊的，直接重新載入到要去的那一頁（有未儲存的變更時先照常詢問）
+  if (outdated && !current?.ctx.isDirty()) {
+    location.reload();
+    return;
+  }
+
   if (current?.ctx.isDirty()) {
     const leave = await confirmDialog({ title: '還有未儲存的變更', message: '離開這一頁後，尚未儲存的內容會遺失。確定要離開嗎？', confirmText: '離開' });
     if (!leave) {
@@ -435,6 +451,8 @@ window.addEventListener('beforeunload', (e) => {
 });
 // 側邊欄的 Bot 狀態每分鐘更新一次
 setInterval(() => { if (shell && !document.hidden) refreshBots(); }, 60 * 1000);
+// 從別的分頁切回來時也檢查一次（可能已經部署了新版）
+document.addEventListener('visibilitychange', () => { if (shell && !document.hidden) refreshBots(); });
 
 (async () => {
   try {
