@@ -1,5 +1,8 @@
 // AI 人格：各模式的 system prompt 與共用規則（data/prompts/，存檔後立即生效，不必重啟）
 // 送給 Gemini 的 system instruction ＝ 人格 prompt ＋ 全局規則（語音對話再加上語音規則，單一人格模式再加上群組規則）
+//
+// 只有一個人格的 Bot（例如 mousebot-lite）回傳 singlePersona: true：清單只有正在用的人格，不能新增、刪除；
+// 人格檔不存在時回傳 builtin（Bot 實際在用的內建內容），可以從它建立人格檔；共用規則缺檔時回傳 builtinText。
 
 import { fill, h, icon } from '../dom.js';
 import { api, seg } from '../api.js';
@@ -10,6 +13,11 @@ const SHARED_INFO = {
   _general: { title: '全局規則', desc: '接在每個人格的 prompt 後面，文字與語音回覆都會用到。' },
   _voice: { title: '語音規則', desc: '語音對話（喚醒詞、錄音按鈕）時再額外接上。' },
   _group: { title: '群組規則', desc: '單一人格模式（大家共用同一個人格的群聊）時再額外接上；留空就不加。' },
+};
+// 只有一個人格的 Bot（群聊）：說明改成這個
+const SHARED_INFO_SINGLE = {
+  _general: '接在人格的 prompt 後面，每則回覆都會用到。留空就不加。',
+  _group: '群聊規則，接在全局規則後面。留空時 Bot 會用內建的群聊規則。',
 };
 // 人格 front matter 的選填欄位（空字串＝沒寫，使用預設）
 const SINGLE_SCOPE_OPTIONS = [
@@ -70,20 +78,28 @@ export default function mountPrompts(root, ctx) {
     }, h('span', { class: 'pick-title' }, title), h('span', { class: 'pick-sub' }, sub));
   }
 
+  const single = () => !!list?.singlePersona;
+
   function renderList() {
     const shared = list.shared.map((s) => pick(
       { kind: 'shared', key: s.key },
       SHARED_INFO[s.key]?.title ?? s.key,
-      `${s.key}.md・${s.length ? `${fmtInt(s.length)} 字` : '空白'}`,
+      `${s.key}.md・${s.builtin ? '使用內建規則' : s.length ? `${fmtInt(s.length)} 字` : '空白'}`,
     ));
     const modes = list.modes.map((m) => pick(
       { kind: 'mode', key: m.key },
       [m.name,
-        m.key === list.defaultMode ? h('span', { class: 'badge badge-accent' }, '預設') : null,
+        m.key === list.defaultMode ? h('span', { class: 'badge badge-accent' }, single() ? '使用中' : '預設') : null,
         m.users ? h('span', { class: 'badge' }, `${m.users} 人使用`) : null],
       `${m.key}・${m.shortDescription || `${fmtInt(m.length)} 字`}`,
     ));
-    const newPick = selected?.isNew && !selected.restore ? pick(selected, '（新的人格）', '尚未儲存') : null;
+    // 人格檔不存在、Bot 正在用內建人格：按一下從內建內容建立人格檔
+    const builtinPick = list.builtin ? pick(
+      { kind: 'mode', key: list.builtin.key, isNew: true, builtin: true },
+      [list.builtin.name, h('span', { class: 'badge badge-accent' }, '使用中'), h('span', { class: 'badge' }, '內建')],
+      `${list.builtin.key}・還沒有人格檔，按一下從內建內容建立`,
+    ) : null;
+    const newPick = selected?.isNew && !selected.restore && !selected.builtin ? pick(selected, '（新的人格）', '尚未儲存') : null;
     const deleted = (list.deleted || []).map((key) => pick(
       { kind: 'mode', key, isNew: true, restore: true },
       [key, h('span', { class: 'badge' }, '已刪除')],
@@ -93,11 +109,14 @@ export default function mountPrompts(root, ctx) {
     fill(listCard,
       h('div', { class: 'list-label' }, '共用規則'),
       ...shared,
-      h('div', { class: 'list-label' }, `人格模式（${list.modes.length}）`,
-        h('button', { type: 'button', class: 'btn btn-sm', onclick: () => select({ kind: 'mode', key: '', isNew: true }) }, icon('plus', 'ic-sm'), '新增')),
+      single()
+        ? h('div', { class: 'list-label' }, '人格')
+        : h('div', { class: 'list-label' }, `人格模式（${list.modes.length}）`,
+          h('button', { type: 'button', class: 'btn btn-sm', onclick: () => select({ kind: 'mode', key: '', isNew: true }) }, icon('plus', 'ic-sm'), '新增')),
       ...modes,
+      builtinPick,
       newPick,
-      list.modes.length ? null : emptyState('還沒有任何人格，按「新增」建立第一個'),
+      list.modes.length || builtinPick ? null : emptyState(single() ? '找不到人格' : '還沒有任何人格，按「新增」建立第一個'),
       deleted.length ? h('div', { class: 'list-label' }, `已刪除（${deleted.length}）`) : null,
       ...deleted,
     );
@@ -181,6 +200,8 @@ export default function mountPrompts(root, ctx) {
       let prefill = null;
       if (target.kind === 'shared') {
         data = await api.get(`/api/prompts/shared/${seg(target.key)}`);
+      } else if (target.builtin) {
+        prefill = { ...list.builtin };
       } else if (target.restore) {
         // 已刪除的人格：載入最後一版當作新人格的初始內容
         const { versions } = await api.get(`/api/prompts/history/modes/${seg(target.key)}`);
@@ -191,7 +212,7 @@ export default function mountPrompts(root, ctx) {
       }
       if (token !== selectToken || ctx.disposed) return;
       if (target.kind === 'shared') renderSharedEditor(data);
-      else renderModeEditor(data, prefill);
+      else renderModeEditor(data, prefill, { builtin: !!target.builtin });
     } catch (err) {
       if (token === selectToken && !ctx.disposed) editorCard.replaceChildren(errorState(err, () => select(target, { force: true })));
     }
@@ -216,7 +237,8 @@ export default function mountPrompts(root, ctx) {
   }
 
   // mode：既有的人格（null＝新增）；prefill：還原已刪除人格時，從版本紀錄載入的初始內容
-  function renderModeEditor(mode, prefill = null) {
+  // builtin：從 Bot 內建的人格建立人格檔（只有一個人格的 Bot）
+  function renderModeEditor(mode, prefill = null, { builtin = false } = {}) {
     const isNew = !mode;
     const init = mode ?? prefill ?? {};
     const key = h('input', {
@@ -253,7 +275,7 @@ export default function mountPrompts(root, ctx) {
       },
     }, icon('undo', 'ic-sm'), '還原');
     const isDefault = mode?.key === list?.defaultMode;
-    const deleteBtn = isNew ? null : h('button', {
+    const deleteBtn = isNew || single() ? null : h('button', {
       type: 'button', class: 'btn btn-sm btn-danger', disabled: isDefault,
       title: isDefault ? '預設模式不能刪除' : null,
       onclick: () => removeMode(mode),
@@ -279,7 +301,9 @@ export default function mountPrompts(root, ctx) {
       }));
       if (!ok) return;
       tracker.markSaved();
-      toast(prefill ? `已還原人格「${name.value.trim() || k}」，立即生效` : isNew ? `已建立人格「${name.value.trim() || k}」，立即生效` : '已儲存，立即生效');
+      toast(builtin ? `已建立人格檔 ${k}.md，立即生效`
+        : prefill ? `已還原人格「${name.value.trim() || k}」，立即生效`
+          : isNew ? `已建立人格「${name.value.trim() || k}」，立即生效` : '已儲存，立即生效');
       await loadList();
       if (isNew) select({ kind: 'mode', key: k }, { force: true });
     };
@@ -287,18 +311,21 @@ export default function mountPrompts(root, ctx) {
     fill(editorCard,
       h('div', { class: 'card-head' },
         backBtn(),
-        h('h2', null, icon('sparkle'), prefill ? `還原人格：${prefill.name ?? prefill.key}` : isNew ? '新增人格' : mode.name),
+        h('h2', null, icon('sparkle'), builtin ? `建立人格檔：${prefill.name ?? prefill.key}`
+          : prefill ? `還原人格：${prefill.name ?? prefill.key}` : isNew ? '新增人格' : mode.name),
         isNew && !prefill ? null : h('span', { class: 'badge mono' }, historyKey),
         h('div', { class: 'card-head-actions' }, historyBtn, deleteBtn),
       ),
-      prefill ? h('div', { class: 'card-note' }, icon('info', 'ic-sm'),
-        h('span', null, '已載入這個人格刪除前的最後一版；按「建立」就會還原。也可以從「版本紀錄」挑更早的版本。')) : null,
+      builtin ? h('div', { class: 'card-note' }, icon('info', 'ic-sm'),
+        h('span', null, `還沒有 data/prompts/modes/${prefill.key}.md，Bot 目前用的是下面這份內建人格。修改後按「建立」就會存成人格檔並立即生效。`))
+        : prefill ? h('div', { class: 'card-note' }, icon('info', 'ic-sm'),
+          h('span', null, '已載入這個人格刪除前的最後一版；按「建立」就會還原。也可以從「版本紀錄」挑更早的版本。')) : null,
       h('div', { class: 'card-body' }, h('div', { class: 'form' },
         h('div', { class: 'form-row' },
           h('div', { class: 'field' }, h('label', { for: 'pm-key' }, '模式代號'), key,
             h('div', { class: 'hint' }, isNew && !prefill ? '英數、底線、連字號，1～32 字；建立後不能修改' : `也是檔名：data/prompts/modes/${historyKey}.md`)),
           h('div', { class: 'field' }, h('label', { for: 'pm-name' }, '顯示名稱'), name,
-            h('div', { class: 'hint' }, '在 /ai mode 選單與 log 中顯示')),
+            h('div', { class: 'hint' }, single() ? '在 AI 設定頁與 log 中顯示' : '在 /ai mode 選單與 log 中顯示')),
         ),
         h('div', { class: 'form-row' },
           h('div', { class: 'field' }, h('label', { for: 'pm-short' }, '簡短說明（選填）'), short,
@@ -306,7 +333,7 @@ export default function mountPrompts(root, ctx) {
           h('div', { class: 'field' }, h('label', { for: 'pm-clear' }, '清除記憶時的回覆'), clearMsg,
             h('div', { class: 'hint' }, '使用者執行 /ai clear 時，Bot 回的那句話')),
         ),
-        h('div', { class: 'form-row' },
+        single() ? null : h('div', { class: 'form-row' },
           h('div', { class: 'field' }, h('label', { for: 'pm-single' }, '設成群組人格'), singleScope,
             h('div', { class: 'hint' }, '單一人格模式（/ai scope）能不能選這個人格；戀人類人格建議只限擁有者')),
         ),
@@ -351,6 +378,18 @@ export default function mountPrompts(root, ctx) {
       onclick: () => openHistory('shared', data.key, (v) => { text.value = v.text ?? ''; tracker.update(); }),
     }, icon('history', 'ic-sm'), '版本紀錄');
 
+    // 檔案是空的、Bot 正在用內建規則（只有一個人格的 Bot 的 _group）：可以載入內建內容來修改
+    const builtinBox = data.builtinText && !data.text ? h('div', { class: 'callout' }, icon('info', 'ic-sm'),
+      h('div', null,
+        h('div', null, '這個檔案是空的，Bot 目前用的是內建規則。要修改的話，先載入內建內容再編輯、儲存。'),
+        h('details', { class: 'disclosure' }, h('summary', null, icon('chevron'), '內建內容'),
+          h('pre', { class: 'version-preview' }, data.builtinText)),
+        h('button', {
+          type: 'button', class: 'btn btn-sm',
+          onclick: () => { text.value = data.builtinText; tracker.update(); text.focus(); },
+        }, icon('download', 'ic-sm'), '載入內建內容到編輯器'),
+      )) : null;
+
     editorCard.replaceChildren(
       h('div', { class: 'card-head' },
         backBtn(),
@@ -359,7 +398,8 @@ export default function mountPrompts(root, ctx) {
         h('div', { class: 'card-head-actions' }, historyBtn),
       ),
       h('div', { class: 'card-body' }, h('div', { class: 'form' },
-        h('div', { class: 'callout' }, icon('info', 'ic-sm'), h('span', null, info.desc)),
+        h('div', { class: 'callout' }, icon('info', 'ic-sm'), h('span', null, single() && SHARED_INFO_SINGLE[data.key] || info.desc)),
+        builtinBox,
         h('div', { class: 'field' },
           h('label', { for: 'ps-text' }, '規則內容'),
           text,

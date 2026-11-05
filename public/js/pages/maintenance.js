@@ -1,12 +1,15 @@
-// 維護：Slash 指令同步、音樂快取、設定備份、重新啟動
+// 維護：Slash 指令同步、音樂快取、設定備份與還原、重新啟動
 
 import { h, icon, setVar } from '../dom.js';
 import { api, ApiError, botPath, fetchInit } from '../api.js';
 import { fmtDateTime, fmtDuration, fmtInt } from '../format.js';
-import { card, confirmDialog, errorState, loadingState, statusBadge, toast, withBusy } from '../ui.js';
+import { card, confirmDialog, errorState, loadingState, openModal, statusBadge, toast, toastError, withBusy } from '../ui.js';
 
 const RESTART_POLL_MS = 2000;
 const RESTART_TIMEOUT_MS = 3 * 60 * 1000;
+// 和 Bot 端管理 API 的 body 上限一致（admin/agent.js 的 MAX_BODY_BYTES）
+const MAX_RESTORE_BYTES = 8 * 1024 * 1024;
+const RESTORE_STATUS = { new: ['good', '新增'], changed: ['warn', '會被取代'], same: ['neutral', '相同，不變'] };
 
 export default function mountMaintenance(root, ctx) {
   const commandsSlot = h('div', null, loadingState());
@@ -164,15 +167,86 @@ export default function mountMaintenance(root, ctx) {
       toast(`已下載 ${filename}`);
     }));
 
+    // 還原：選檔 → 預覽會換掉哪些檔案 → 確認後 Bot 先暫存，重新啟動時才套用（見 Bot 端 admin/backup.js）
+    const fileInput = h('input', { type: 'file', accept: '.json,application/json', hidden: true });
+    const restoreBtn = h('button', { type: 'button', class: 'btn' }, icon('arrow-up', 'ic-sm'), '上傳並還原…');
+    restoreBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files?.[0];
+      fileInput.value = '';
+      if (!file) return;
+      if (file.size > MAX_RESTORE_BYTES) { toast(`檔案太大（上限 ${MAX_RESTORE_BYTES / 1024 / 1024} MB）`, { type: 'error' }); return; }
+      let backup;
+      try {
+        backup = JSON.parse(await file.text());
+      } catch {
+        toast('這不是有效的 JSON 檔', { type: 'error' });
+        return;
+      }
+      await withBusy(restoreBtn, async () => {
+        const preview = await api.post('/api/backup/preview', { backup });
+        if (!ctx.disposed) openRestorePreview(file.name, backup, preview);
+      });
+    });
+
     backupSlot.replaceChildren(card({
       title: '設定備份',
       iconName: 'download',
       body: h('div', { class: 'form' },
         h('p', { class: 'hint' }, '把這隻 Bot 在 data/ 裡的設定打包成一個 JSON 檔（依 Bot 而定，例如自訂回應、AI 人格、插話機率、通知頻道、自動加入、TTS 與 Bot 狀態設定）。不包含任何金鑰與 Cookie。'),
         h('label', { class: 'check', for: 'backup-stats' }, statsBox, h('span', null, '一併包含統計資料（AI 用量、播放次數、通知紀錄）')),
+        fileInput,
       ),
-      foot: [h('span', { class: 'spacer' }), downloadBtn],
+      foot: [restoreBtn, h('span', { class: 'spacer' }), downloadBtn],
+      note: '還原：上傳之前下載的備份檔，先預覽會換掉哪些檔案，確認後 Bot 會重新啟動並套用。備份裡沒有的檔案維持原樣；還原前的檔案會保留在 data/backups/restore-<時間>/（最近 5 份）。',
     }));
+  }
+
+  function openRestorePreview(filename, backup, preview) {
+    const changes = preview.files.filter((f) => f.status !== 'same');
+    const created = preview.createdAt ? fmtDateTime(Date.parse(preview.createdAt)) : '未知';
+    const confirmBtn = h('button', { type: 'button', class: 'btn btn-danger-solid', disabled: !changes.length },
+      icon('power', 'ic-sm'), preview.supervised ? '還原並重新啟動' : '還原並關閉 Bot');
+    const cancelBtn = h('button', { type: 'button', class: 'btn' }, '取消');
+
+    const rows = preview.files.map((f) => {
+      const [kind, text] = RESTORE_STATUS[f.status] ?? ['neutral', f.status];
+      return h('tr', null, h('td', { class: 'mono' }, f.path), h('td', null, statusBadge(kind, text)));
+    });
+    const body = h('div', { class: 'form' },
+      h('dl', { class: 'kv' },
+        h('dt', null, '檔案'), h('dd', null, filename),
+        h('dt', null, '備份時間'), h('dd', null, created),
+        h('dt', null, '會變動'), h('dd', null, changes.length ? `${fmtInt(changes.length)} 個檔案` : '沒有（和目前完全相同）'),
+      ),
+      rows.length ? h('div', { class: 'table-wrap restore-table' }, h('table', { class: 'table' },
+        h('thead', null, h('tr', null, h('th', null, '檔案'), h('th', null, '還原後'))),
+        h('tbody', null, rows))) : null,
+      preview.skipped.length ? h('div', { class: 'callout callout-warn' }, icon('alert', 'ic-sm'),
+        h('div', null, h('div', null, `會略過 ${preview.skipped.length} 個檔案：`),
+          h('ul', { class: 'restore-skipped' }, preview.skipped.map((s) => h('li', null, h('span', { class: 'mono' }, s.path), `：${s.reason}`))))) : null,
+      h('div', { class: 'callout' }, icon('info', 'ic-sm'), h('span', null,
+        preview.supervised
+          ? 'Bot 會重新啟動（約 10～60 秒），啟動時套用這些檔案；播放中的音樂會在重新啟動後接續。'
+          : '這隻 Bot 沒有自動重啟：確認後 Bot 會關閉，你手動啟動時才會套用這些檔案。')),
+    );
+    const modal = openModal({ title: '還原設定備份', body, wide: true, footer: [h('span', { class: 'spacer' }), cancelBtn, confirmBtn] });
+    cancelBtn.addEventListener('click', () => modal.close());
+    confirmBtn.addEventListener('click', async () => {
+      confirmBtn.disabled = true;
+      cancelBtn.disabled = true;
+      try {
+        const before = await api.get('/api/system');
+        const res = await api.post('/api/backup/restore', { backup });
+        modal.close();
+        toast(`已暫存 ${res.staged} 個檔案，Bot 重新啟動時套用`);
+        waitForRestart(before);
+      } catch (err) {
+        toastError(err);
+        confirmBtn.disabled = false;
+        cancelBtn.disabled = false;
+      }
+    });
   }
 
   // ── 重新啟動 ─────────────────────────────────────────────

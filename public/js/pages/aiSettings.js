@@ -1,4 +1,9 @@
 // AI 設定：模型與額度（唯讀）、使用者人格模式、各伺服器的範圍（多人格／單一人格）、隨機插話機率與頻道開關
+//
+// 依 Bot 回傳的欄位決定顯示哪些區塊（不同 Bot 的 AI 功能不同）：
+//   specialUsers → 特殊身分；persona → 固定人格（單一人格的 Bot，例如 mousebot-lite）
+//   userModes → 使用者人格模式；modes → 每個伺服器的 AI 範圍
+//   memoryScope：'user'（預設）＝依使用者清除記憶；'channel'＝群聊，依頻道清除（頻道清單裡的按鈕）
 
 import { h, icon } from '../dom.js';
 import { api, qs, seg } from '../api.js';
@@ -29,13 +34,45 @@ export default function mountAiSettings(root, ctx) {
     return m ? (m.name || m.key) : key;
   };
 
+  const memoryScope = () => data.memoryScope ?? 'user';
+
   function render() {
+    const side = data.specialUsers ? specialCard() : data.persona ? personaCard() : null;
     root.replaceChildren(
-      h('div', { class: 'grid grid-2' }, modelCard(), specialCard()),
-      userModesCard(),
-      memoryCard(),
+      side ? h('div', { class: 'grid grid-2' }, modelCard(), side) : modelCard(),
+      data.userModes ? userModesCard() : null,
+      memoryScope() === 'user' ? memoryCard() : null,
       chanceCard(),
     );
+  }
+
+  // ── 固定人格（單一人格的 Bot）────────────────────────────
+  function personaCard() {
+    const p = data.persona;
+    return card({
+      title: '人格',
+      iconName: 'sparkle',
+      body: h('dl', { class: 'kv' },
+        h('dt', null, '名稱'), h('dd', null, p.name || p.key),
+        h('dt', null, '代號'), h('dd', { class: 'mono' }, p.key),
+        h('dt', null, '來源'), h('dd', null, p.fromFile
+          ? h('span', { class: 'mono' }, `data/prompts/modes/${p.key}.md`)
+          : '內建的通用人格（找不到人格檔）'),
+      ),
+      note: '這隻 Bot 所有伺服器、所有頻道都用同一個人格群聊。人格由環境變數 AI_PERSONA 指定，內容在 Bot 資料夾的 data/prompts/ 裡修改（存檔後自動生效）。',
+    });
+  }
+
+  // ── 清除頻道的對話記憶（群聊的 Bot：等同 /ai clear all:true）──
+  async function clearChannelMemory(g, c, button) {
+    const ok = await confirmDialog({
+      title: '清除頻道的對話記憶',
+      message: `要清除「${g.name} › #${c.name ?? c.id}」所有人和 AI 的對話記憶嗎？之後 AI 不會再參考這個頻道先前的對話（效果等同 /ai clear all:true）。`,
+      confirmText: '清除',
+    });
+    if (!ok) return;
+    const done = await withBusy(button, () => api.post(`/api/ai/memory/channel/${seg(c.id)}`));
+    if (done) toast(`已清除 #${c.name ?? c.id} 的對話記憶`);
   }
 
   // ── 清除對話記憶（等同對方自己下 /ai clear）─────────────────
@@ -136,7 +173,7 @@ export default function mountAiSettings(root, ctx) {
       iconName: 'sliders',
       body: h('dl', { class: 'kv' },
         h('dt', null, '對話模型'), h('dd', { class: 'mono' }, data.model),
-        h('dt', null, '帳單辨識模型'), h('dd', { class: 'mono' }, data.visionModel),
+        data.visionModel ? [h('dt', null, '帳單辨識模型'), h('dd', { class: 'mono' }, data.visionModel)] : null,
         h('dt', null, '每人頻率限制'), h('dd', null, limits.userRateLimit > 0 ? `${limits.userRateLimit} 次 / ${limits.userRateWindowSec} 秒` : '不限制'),
         h('dt', null, '每人每日上限'), h('dd', null, limit(limits.userDailyBudget, 'tokens')),
         h('dt', null, '全體每日上限'), h('dd', null, limit(limits.dailyBudget, 'tokens')),
@@ -378,6 +415,14 @@ export default function mountAiSettings(root, ctx) {
       const disabledCount = g.channels.filter((c) => c.disabled).length;
       const channelList = h('div', { class: 'channel-toggles' }, g.channels.map((c) => h('div', { class: 'channel-toggle' },
         h('span', { class: 'channel-name' }, icon(c.kind === 'voice' ? 'volume' : 'hash', 'ic-sm'), h('span', null, c.name ?? c.id)),
+        memoryScope() === 'channel' ? (() => {
+          const btn = h('button', {
+            type: 'button', class: 'btn btn-sm btn-ghost', title: '清除這個頻道的對話記憶',
+            'aria-label': `清除 #${c.name ?? c.id} 的對話記憶`,
+            onclick: () => clearChannelMemory(g, c, btn),
+          }, icon('eraser', 'ic-sm'));
+          return btn;
+        })() : null,
         switchControl({
           checked: !c.disabled,
           ariaLabel: `#${c.name ?? c.id} 隨機插話`,
@@ -395,24 +440,30 @@ export default function mountAiSettings(root, ctx) {
           valueEl,
           resetBtn,
         ),
-        ...scopeControls(g),
+        ...(data.modes ? scopeControls(g) : []),
         g.channels.length
           ? h('details', { class: 'disclosure' },
-            h('summary', null, icon('chevron'), `頻道開關（${g.channels.length - disabledCount} 開 / ${disabledCount} 關）`),
+            h('summary', null, icon('chevron'), memoryScope() === 'channel'
+              ? `頻道開關與清除記憶（${g.channels.length - disabledCount} 開 / ${disabledCount} 關）`
+              : `頻道開關（${g.channels.length - disabledCount} 開 / ${disabledCount} 關）`),
             channelList,
           )
           : null,
       );
     });
 
+    const chanceNote = '插話機率是 Bot 對一般訊息隨機插話的機率；頻道開關關閉後，該頻道不會隨機插話（被 @ 提及時仍會回覆）。也可以用 /ai chance 設定。';
     return card({
-      title: '伺服器：範圍與隨機插話',
+      title: data.modes ? '伺服器：範圍與隨機插話' : '伺服器：隨機插話',
       sub: `預設插話 ${Math.round(def * 100)}%`,
       iconName: 'message',
       tight: true,
       body: blocks.length ? blocks : emptyState('Bot 還沒加入任何伺服器'),
-      note: 'AI 範圍：多人格時每個人用自己的人格；單一人格時整個伺服器（沒有自己覆寫的頻道）共用同一個人格與群組對話。頻道覆寫請在 Discord 用 /ai scope set channel:true 設定。'
-        + '插話機率是 Bot 對一般訊息隨機插話的機率；頻道開關關閉後，該頻道不會隨機插話（被 @ 提及時仍會回覆）。也可以用 /ai chance 設定。',
+      note: data.modes
+        ? 'AI 範圍：多人格時每個人用自己的人格；單一人格時整個伺服器（沒有自己覆寫的頻道）共用同一個人格與群組對話。頻道覆寫請在 Discord 用 /ai scope set channel:true 設定。' + chanceNote
+        : chanceNote + (memoryScope() === 'channel'
+          ? '對話記憶以頻道為單位（群聊）：頻道清單裡的橡皮擦會清除那個頻道所有人的記憶，AI 只會參考清除之後的訊息。'
+          : ''),
     });
   }
 

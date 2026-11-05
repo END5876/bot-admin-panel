@@ -538,6 +538,9 @@ svg.logo .logo-eye { fill: var(--card); }
   font-size: 13px;
 }
 .callout svg.ic { margin-top: 1px; }
+/* 多段內容（說明＋展開區塊＋按鈕）時垂直排列 */
+.callout > div { display: grid; gap: 8px; justify-items: start; min-width: 0; }
+.callout > div > details { width: 100%; }
 .callout-warn { background: var(--warn-tint); color: var(--warn-ink); }
 .is-refreshing { opacity: .55; transition: opacity .15s; }
 
@@ -694,6 +697,8 @@ dialog.modal::backdrop { background: var(--scrim); }
 @media (max-width: 640px) { .chance-row { grid-template-columns: minmax(0, 1fr) 56px; } .chance-row .range { grid-column: 1 / -1; order: 3; } }
 .channel-toggles { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px 18px; padding: 4px 0 2px; }
 .channel-toggle { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 0; min-width: 0; }
+/* 名稱靠左；清除記憶按鈕（群聊的 Bot 才有）和開關一起靠右 */
+.channel-toggle > .channel-name { margin-right: auto; }
 .channel-name { display: flex; align-items: center; gap: 4px; min-width: 0; color: var(--ink-soft); }
 .channel-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 details.disclosure > summary {
@@ -1020,3 +1025,7 @@ svg.ic.flip { transform: rotate(180deg); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* 還原設定備份的預覽：檔案很多時表格自己捲動 */
+.restore-table { max-height: 40vh; overflow-y: auto; }
+.restore-skipped { margin: 4px 0 0; padding-left: 18px; }

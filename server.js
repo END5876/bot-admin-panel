@@ -40,7 +40,8 @@ const SECRET_FILE = path.join(DATA_DIR, 'admin-session-secret');
 // 已登出的 Cookie（ADMIN_REVOKED_FILE：改放到別的位置，給測試用）
 const REVOKED_FILE = process.env.ADMIN_REVOKED_FILE || path.join(DATA_DIR, 'admin-revoked.json');
 const MIN_PASSWORD_LENGTH = 12;
-const MAX_BODY_BYTES = 256 * 1024;
+// 還原設定備份時整份備份檔會放在 body 裡（含統計資料、多個人格檔時可能到幾 MB）
+const MAX_BODY_BYTES = 8 * 1024 * 1024;
 const LOGIN_BODY_BYTES = 2 * 1024;
 // 所有寫入請求都要帶這個 header（CSRF 防護，見 lib/auth.js）
 const CSRF_HEADER = 'x-mousebot-admin';
