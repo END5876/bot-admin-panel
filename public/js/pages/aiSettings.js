@@ -1,7 +1,7 @@
 // AI 設定：模型與額度（唯讀）、使用者人格模式、各伺服器的範圍（多人格／單一人格）、隨機插話機率與頻道開關
 //
 // 依 Bot 回傳的欄位決定顯示哪些區塊（不同 Bot 的 AI 功能不同）：
-//   specialUsers → 特殊身分；persona → 固定人格（單一人格的 Bot，例如 mousebot-lite）
+//   fixedUserModes → 固定人格（環境變數）；persona → 固定人格（單一人格的 Bot，例如 mousebot-lite）
 //   userModes → 使用者人格模式；modes → 每個伺服器的 AI 範圍
 //   memoryScope：'user'（預設）＝依使用者清除記憶；'channel'＝群聊，依頻道清除（頻道清單裡的按鈕）
 
@@ -37,7 +37,7 @@ export default function mountAiSettings(root, ctx) {
   const memoryScope = () => data.memoryScope ?? 'user';
 
   function render() {
-    const side = data.specialUsers ? specialCard() : data.persona ? personaCard() : null;
+    const side = data.fixedUserModes ? fixedCard() : data.persona ? personaCard() : null;
     root.replaceChildren(
       side ? h('div', { class: 'grid grid-2' }, modelCard(), side) : modelCard(),
       data.userModes ? userModesCard() : null,
@@ -185,21 +185,21 @@ export default function mountAiSettings(root, ctx) {
     });
   }
 
-  function specialCard() {
-    const group = (title, mode, users) => h('div', { class: 'field' },
-      h('span', { class: 'field-label' }, `${title}（${mode}）`),
-      users.length
-        ? h('div', { class: 'rows' }, users.map((u) => h('div', { class: 'row' }, userCell(u))))
-        : h('div', { class: 'hint' }, '未設定'),
-    );
+  // ── 環境變數的固定人格（AI_USER_MODE_OVERRIDES）─────────
+  function fixedCard() {
+    const entries = data.fixedUserModes;
     return card({
-      title: '特殊身分',
+      title: '固定人格',
       iconName: 'user',
-      body: h('div', { class: 'form' },
-        group('戀人模式', 'lover', data.specialUsers.lover),
-        group('開發者模式', 'developer', data.specialUsers.developer),
-      ),
-      note: '由環境變數 LOVER_MODE_USER_IDS、DEVELOPER_MODE_USER_IDS 指定。下方「使用者人格模式」的設定優先於這裡。',
+      body: entries.length
+        ? h('div', { class: 'rows' }, entries.map((e) => h('div', { class: 'row' },
+          userCell(e.user),
+          h('span', null, modeLabel(e.mode)),
+          e.modeName === null ? h('span', { class: 'hint' }, `（${e.mode} 不存在，改用預設 ${data.defaultMode}）`) : null,
+          e.overridden ? h('span', { class: 'badge badge-warn' }, '已被下方指定蓋過') : null,
+        )))
+        : h('div', { class: 'hint' }, '未設定'),
+      note: '由環境變數 AI_USER_MODE_OVERRIDES（使用者ID:模式代號,…）指定，修改後需重啟 Bot。下方「使用者人格模式」的設定優先於這裡。',
     });
   }
 
@@ -231,7 +231,7 @@ export default function mountAiSettings(root, ctx) {
         onclick: async () => {
           const ok = await confirmDialog({
             title: '移除人格指定',
-            message: `移除後，${entry.user?.name ?? entry.user?.id} 會回到預設判斷（特殊身分或預設模式 ${data.defaultMode}）。`,
+            message: `移除後，${entry.user?.name ?? entry.user?.id} 會回到預設判斷（環境變數的固定人格或預設模式 ${data.defaultMode}）。`,
             confirmText: '移除',
           });
           if (!ok) return;
@@ -264,7 +264,7 @@ export default function mountAiSettings(root, ctx) {
           : emptyState('還沒有指定任何人的人格模式', 'user'),
         h('div', { class: 'guild-block' }, addUserModeForm()),
       ],
-      note: `優先順序：這裡的指定 → 特殊身分 → 預設模式「${modeLabel(data.defaultMode)}」。也可以在 Discord 用 /ai mode 設定。`,
+      note: `優先順序：這裡的指定 → 環境變數的固定人格 → 預設模式「${modeLabel(data.defaultMode)}」。也可以在 Discord 用 /ai mode 設定。`,
     });
   }
 

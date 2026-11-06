@@ -105,7 +105,8 @@ export default function mountTts(root, ctx) {
         }
       });
 
-      const aiSwitch = switchControl({
+      // Bot 沒啟用 AI 時 aiTTS 是 null：開關不會有作用，改顯示說明
+      const aiSwitch = g.aiTTS === null ? h('span', { class: 'hint' }, 'AI 未啟用（無法自動朗讀 AI 回覆）') : switchControl({
         checked: g.aiTTS,
         label: 'AI 回覆自動朗讀',
         onChange: async (on) => {

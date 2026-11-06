@@ -70,7 +70,7 @@ export default function mountVoice(root, ctx) {
   // 自動加入的目標在這個伺服器時，離開或換頻道後約 10 秒會被拉回目標頻道
   function autoJoinNote(g) {
     const aj = data.autoJoin;
-    if (!aj.enabled || aj.targetGuildId !== g.id || !aj.channelName) return null;
+    if (!aj || !aj.enabled || aj.targetGuildId !== g.id || !aj.channelName) return null;
     return `自動加入已開啟：Bot 會常駐在「${aj.channelName}」，離開或移到其他頻道後約 10 秒會回去。`;
   }
 
@@ -81,6 +81,8 @@ export default function mountVoice(root, ctx) {
     if (!force && (sig === autoJoinSig || autoJoinPending)) return;
     autoJoinSig = sig;
     autoJoinPending = false;
+    // Bot 沒啟用自動加入（FEATURES 未包含 autojoin）時 autoJoin 是 null：不顯示這張卡片
+    if (!aj) { autoJoinSlot.replaceChildren(); return; }
 
     const groups = data.guilds
       .filter((g) => g.voiceChannels.length)
@@ -140,7 +142,8 @@ export default function mountVoice(root, ctx) {
   function renderGuilds() {
     const active = data.guilds.filter((g) => g.voice || g.music);
     const others = data.guilds.filter((g) => !g.voice && !g.music);
-    const ajSig = JSON.stringify([data.autoJoin.enabled, data.autoJoin.targetGuildId, data.autoJoin.channelName]);
+    const aj = data.autoJoin;
+    const ajSig = JSON.stringify(aj ? [aj.enabled, aj.targetGuildId, aj.channelName] : null);
 
     if (!active.length) {
       cards.clear();
@@ -148,7 +151,7 @@ export default function mountVoice(root, ctx) {
         title: '語音連線', iconName: 'headphones',
         body: emptyState(ctx.has('voice:join')
           ? 'Bot 目前不在任何語音頻道。可以在下方「其他伺服器」讓 Bot 加入，或在 Discord 用 /play 點歌。'
-          : 'Bot 目前不在任何語音頻道。可以用上方的「自動加入」設定頻道，或在 Discord 用 /play 點歌。', 'volume'),
+          : (aj ? 'Bot 目前不在任何語音頻道。可以用上方的「自動加入」設定頻道，或在 Discord 用 /play 點歌。' : 'Bot 目前不在任何語音頻道。可以在 Discord 用 /play 點歌。'), 'volume'),
       }));
     } else {
       const els = active.map((g) => {
@@ -278,7 +281,7 @@ export default function mountVoice(root, ctx) {
       ? [icon('volume', 'ic-sm'), ' ', v.channelName ?? '（頻道未知）', v.listeners != null ? `・${v.listeners} 人在頻道` : '']
       : ['不在語音頻道'];
 
-    const enqueueBtn = v ? h('button', { type: 'button', class: 'btn btn-sm btn-primary', onclick: () => openEnqueue(g) }, icon('plus', 'ic-sm'), '點歌') : null;
+    const enqueueBtn = v && data.musicControl !== false ? h('button', { type: 'button', class: 'btn btn-sm btn-primary', onclick: () => openEnqueue(g) }, icon('plus', 'ic-sm'), '點歌') : null;
     const leaveBtn = v && ctx.has('voice:join') ? h('button', { type: 'button', class: 'btn btn-sm btn-danger' }, icon('logout', 'ic-sm'), '離開') : null;
     leaveBtn?.addEventListener('click', () => leave(g, leaveBtn));
 
@@ -289,7 +292,7 @@ export default function mountVoice(root, ctx) {
       body = built.el;
       tick = built.tick;
     } else {
-      body = h('div', { class: 'card-body' }, emptyState(v ? '目前沒有播放音樂，按右上角「點歌」開始' : '目前沒有播放音樂', 'music'));
+      body = h('div', { class: 'card-body' }, emptyState(v && data.musicControl !== false ? '目前沒有播放音樂，按右上角「點歌」開始' : '目前沒有播放音樂', 'music'));
     }
 
     const note = autoJoinNote(g);

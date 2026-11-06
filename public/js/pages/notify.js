@@ -32,7 +32,8 @@ export default function mountNotify(root, ctx) {
   function render() {
     root.replaceChildren(
       h('div', { class: 'grid grid-2' }, data.platforms.map(platformCard)),
-      announcerCard(),
+      // Bot 沒啟用整點報時（FEATURES 未包含 timeannounce）時 timeAnnouncer 是 null，不顯示這張卡片
+      ...(data.timeAnnouncer ? [announcerCard()] : []),
     );
   }
 
