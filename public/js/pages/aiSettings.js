@@ -4,6 +4,7 @@
 //   fixedUserModes → 固定人格（環境變數）；persona → 固定人格（單一人格的 Bot，例如 mousebot-lite）
 //   userModes → 使用者人格模式；modes → 每個伺服器的 AI 範圍
 //   memoryScope：'user'（預設）＝依使用者清除記憶；'channel'＝群聊，依頻道清除（頻道清單裡的按鈕）
+//   timeoutUsers → 禁言名單（有 AI 工具的 Bot，例如 mousebot）
 
 import { h, icon } from '../dom.js';
 import { api, qs, seg } from '../api.js';
@@ -42,6 +43,7 @@ export default function mountAiSettings(root, ctx) {
       side ? h('div', { class: 'grid grid-2' }, modelCard(), side) : modelCard(),
       data.userModes ? userModesCard() : null,
       memoryScope() === 'user' ? memoryCard() : null,
+      data.timeoutUsers ? timeoutCard() : null,
       chanceCard(),
     );
   }
@@ -102,6 +104,63 @@ export default function mountAiSettings(root, ctx) {
         clearBtn,
       ),
       note: 'AI 只會參考同一個頻道最近 10 分鐘內的對話；清除後，在那之前的訊息都不會再被當成上下文（Bot 重新啟動後仍然有效）。只影響多人格的對話；單一人格頻道請在 Discord 用 /ai clear。',
+    });
+  }
+
+  // ── 禁言名單：名單上的人 @Bot 辱罵它時，禁言 1 分鐘並被回嗆 ──
+  function timeoutCard() {
+    const t = data.timeoutUsers;
+    const rows = t.users.map((e) => {
+      const name = e.user?.name ?? e.user?.id;
+      let action;
+      if (e.source === 'env') {
+        action = h('span', { class: 'badge', title: '要移除請修改環境變數 AI_TIMEOUT_USERS 並重新啟動 Bot' }, '環境變數');
+      } else {
+        action = h('button', {
+          type: 'button', class: 'btn btn-sm btn-ghost btn-danger', 'aria-label': `把 ${name} 移出禁言名單`,
+          onclick: async () => {
+            const done = await withBusy(action, () => api.del(`/api/ai/timeout-users/${seg(e.user.id)}`));
+            if (done) { toast(`已把 ${name} 移出禁言名單`); load(); }
+          },
+        }, icon('trash', 'ic-sm'), '移出名單');
+      }
+      return h('div', { class: 'row' }, userCell(e.user), action);
+    });
+
+    let chosen = null;
+    const addBtn = h('button', {
+      type: 'button', class: 'btn btn-primary', disabled: true,
+      onclick: async () => {
+        if (!chosen) return;
+        const done = await withBusy(addBtn, () => api.put(`/api/ai/timeout-users/${seg(chosen.id)}`));
+        if (done) { toast(`已把 ${chosen.name} 加入禁言名單`); load(); }
+      },
+    }, icon('plus', 'ic-sm'), '加入名單');
+    const picker = memberPicker((user) => { chosen = user; addBtn.disabled = !user; });
+
+    const warnings = [
+      !t.toolsEnabled
+        ? h('div', { class: 'hint' }, icon('alert', 'ic-sm'), ' 目前不會禁言任何人：AI 工具已用環境變數 AI_TOOLS=0 關閉。要啟用請移除這個設定並重新啟動 Bot。')
+        : null,
+      t.guildsWithoutPermission.length
+        ? h('div', { class: 'hint' }, icon('alert', 'ic-sm'),
+          ` 在「${t.guildsWithoutPermission.map((g) => g.name ?? g.id).join('、')}」不會禁言：Bot 沒有「禁言成員」權限。要啟用請在該伺服器給 Bot 的身分組這個權限。`)
+        : null,
+    ];
+
+    return card({
+      title: '禁言名單',
+      sub: `${t.users.length} 人`,
+      iconName: 'lock',
+      body: [
+        ...warnings,
+        t.users.length ? h('div', { class: 'rows' }, rows) : emptyState('名單是空的，目前不會禁言任何人', 'lock'),
+        h('div', { class: 'guild-block' }, h('div', { class: 'add-row add-row-2' },
+          h('div', { class: 'field' }, h('span', { class: 'field-label' }, '加入名單：搜尋成員'), picker),
+          addBtn,
+        )),
+      ],
+      note: '名單上的人 @Bot 或用 /ai ask 認真辱罵 Bot 時，AI 會把他禁言 1 分鐘，並回嗆一句。開玩笑的吐槽不算；語音對話不會觸發；權限比 Bot 高的人（例如管理員）禁言不了。也可以用環境變數 AI_TIMEOUT_USERS 指定，那些人只能改環境變數移除。',
     });
   }
 
