@@ -2,7 +2,7 @@
 
 import { h, icon } from '../dom.js';
 import { api, qs } from '../api.js';
-import { fmtDateTime, fmtInt, fmtTime } from '../format.js';
+import { fmtInt, fmtLogStamp } from '../format.js';
 import { emptyState, errorState, segmented, selectEl } from '../ui.js';
 
 const POLL_MS = 2000;
@@ -79,7 +79,7 @@ export default function mountLogs(root, ctx) {
       return h('div', { class: 'log-row lv-debug' }, h('span'), h('span'), h('div', { class: 'log-msg' }, `…中間有 ${fmtInt(e.gap)} 則紀錄已被較新的紀錄擠掉`));
     }
     return h('div', { class: ['log-row', `lv-${e.level}`] },
-      h('span', { class: 'log-time', title: fmtDateTime(e.ts) }, fmtTime(e.ts)),
+      h('span', { class: 'log-time' }, fmtLogStamp(e.ts)),
       h('span', { class: 'log-lv', role: 'img', 'aria-label': LEVEL_NAME[e.level] ?? e.level, title: LEVEL_NAME[e.level] ?? e.level }, icon(LEVEL_ICON[e.level] ?? 'info')),
       h('div', { class: 'log-msg' }, h('span', { class: 'log-mod' }, `[${e.mod}]`), e.msg),
     );

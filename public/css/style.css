@@ -846,12 +846,12 @@ details.disclosure[open] > summary svg.ic { transform: rotate(90deg); }
 }
 .log-row {
   display: grid;
-  grid-template-columns: 64px 18px minmax(0, 1fr);
+  grid-template-columns: max-content 18px minmax(0, 1fr);
   gap: 8px;
   padding: 3px 16px;
   border-bottom: 1px solid color-mix(in srgb, var(--line) 55%, transparent);
 }
-.log-time { color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+.log-time { color: var(--ink-faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .log-lv { display: grid; place-items: center; height: 19px; }
 .log-lv svg.ic { width: 14px; height: 14px; stroke-width: 2.4; }
 .log-msg { white-space: pre-wrap; overflow-wrap: anywhere; }

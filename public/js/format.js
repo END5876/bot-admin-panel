@@ -41,6 +41,13 @@ const dateTimeFmt = new Intl.DateTimeFormat('zh-TW', { month: 'numeric', day: 'n
 export const fmtTime = (ts) => timeFmt.format(new Date(ts));
 export const fmtDateTime = (ts) => dateTimeFmt.format(new Date(ts));
 
+/** 日誌用的完整時間「2026-11-20 14:03:05」（瀏覽器時區） */
+export function fmtLogStamp(ts) {
+  const d = new Date(ts);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 
 /** 'YYYY-MM-DD'（伺服器時區的日期鍵）→ 「10/14」，long 時加上星期 */
