@@ -107,7 +107,68 @@ export default function mountAiSettings(root, ctx) {
     });
   }
 
-  // ── 禁言名單：名單上的人 @Bot 辱罵它時，禁言 1 分鐘並被回嗆 ──
+  // ── 禁言名單：名單上的人 @Bot 辱罵它時，禁言一段時間並被回嗆 ──
+  const DURATION_UNITS = [
+    { value: '86400', label: '天' }, { value: '3600', label: '小時' }, { value: '60', label: '分鐘' }, { value: '1', label: '秒' },
+  ];
+
+  function fmtDuration(seconds) {
+    const parts = [];
+    let rest = seconds;
+    for (const u of DURATION_UNITS) {
+      const size = Number(u.value);
+      const n = Math.floor(rest / size);
+      if (n) { parts.push(`${n} ${u.label}`); rest -= n * size; }
+    }
+    return parts.join(' ') || '0 秒';
+  }
+
+  /** 禁言時長：數字＋單位，存檔後立即生效 */
+  function durationBlock(d) {
+    // 用能整除的最大單位顯示（3600 → 1 小時、90 → 90 秒）
+    const unit = DURATION_UNITS.find((u) => d.seconds % Number(u.value) === 0) ?? DURATION_UNITS.at(-1);
+    const numInput = h('input', {
+      class: 'input', type: 'number', min: 1, step: 1, inputmode: 'numeric',
+      value: d.seconds / Number(unit.value), 'aria-label': '禁言時長',
+    });
+    const unitSel = selectEl({ options: DURATION_UNITS, value: unit.value, ariaLabel: '禁言時長的單位' });
+    const saveBtn = h('button', {
+      type: 'button', class: 'btn btn-primary',
+      onclick: async () => {
+        const seconds = Number(numInput.value) * Number(unitSel.value);
+        if (!Number.isInteger(seconds) || seconds < d.min || seconds > d.max) {
+          toast(`沒有儲存：禁言時長要介於 ${fmtDuration(d.min)}到 28 天之間，請改一下數字或單位。`, { type: 'error' });
+          return;
+        }
+        const done = await withBusy(saveBtn, () => api.put('/api/ai/timeout-duration', { seconds }));
+        if (done) { toast(`禁言時長已改為 ${fmtDuration(seconds)}`); load(); }
+      },
+    }, icon('save', 'ic-sm'), '儲存時長');
+    const resetBtn = d.source === 'panel'
+      ? h('button', {
+        type: 'button', class: 'btn btn-sm',
+        onclick: async () => {
+          const done = await withBusy(resetBtn, () => api.del('/api/ai/timeout-duration'));
+          if (done) { toast('禁言時長已恢復預設'); load(); }
+        },
+      }, icon('undo', 'ic-sm'), '恢復預設')
+      : null;
+    const sourceText = d.source === 'panel'
+      ? '目前用的是面板設定的時長。'
+      : d.source === 'env'
+        ? '目前用的是環境變數 AI_TIMEOUT_SECONDS 的時長。'
+        : `目前用的是預設時長（${fmtDuration(d.default)}）。`;
+
+    return h('div', { class: 'guild-block' },
+      h('div', { class: 'add-row' },
+        h('div', { class: 'field' }, h('span', { class: 'field-label' }, `禁言時長（目前 ${fmtDuration(d.seconds)}）`), numInput),
+        h('div', { class: 'field' }, h('span', { class: 'field-label' }, '單位'), unitSel),
+        saveBtn,
+      ),
+      h('div', { class: 'hint' }, sourceText, ` 可設 ${fmtDuration(d.min)}到 28 天，儲存後立即生效。`, resetBtn ? ' ' : null, resetBtn),
+    );
+  }
+
   function timeoutCard() {
     const t = data.timeoutUsers;
     const rows = t.users.map((e) => {
@@ -154,13 +215,14 @@ export default function mountAiSettings(root, ctx) {
       iconName: 'lock',
       body: [
         ...warnings,
+        durationBlock(t.duration),
         t.users.length ? h('div', { class: 'rows' }, rows) : emptyState('名單是空的，目前不會禁言任何人', 'lock'),
         h('div', { class: 'guild-block' }, h('div', { class: 'add-row add-row-2' },
           h('div', { class: 'field' }, h('span', { class: 'field-label' }, '加入名單：搜尋成員'), picker),
           addBtn,
         )),
       ],
-      note: '名單上的人 @Bot 或用 /ai ask 認真辱罵 Bot 時，AI 會把他禁言 1 分鐘，並回嗆一句。開玩笑的吐槽不算；語音對話不會觸發；權限比 Bot 高的人（例如管理員）禁言不了。也可以用環境變數 AI_TIMEOUT_USERS 指定，那些人只能改環境變數移除。',
+      note: '名單上的人 @Bot 或用 /ai ask 認真辱罵 Bot 時，AI 會依上方設定的時長禁言他，並回嗆一句。開玩笑的吐槽不算；語音對話不會觸發；權限比 Bot 高的人（例如管理員）禁言不了。也可以用環境變數 AI_TIMEOUT_USERS 指定，那些人只能改環境變數移除。',
     });
   }
 
