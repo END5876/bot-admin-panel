@@ -123,33 +123,33 @@ export default function mountAiSettings(root, ctx) {
     return parts.join(' ') || '0 秒';
   }
 
-  /** 禁言時長：數字＋單位，存檔後立即生效 */
+  /** 最長禁言時長：數字＋單位，存檔後立即生效（實際時長由 AI 依嚴重度決定） */
   function durationBlock(d) {
     // 用能整除的最大單位顯示（3600 → 1 小時、90 → 90 秒）
     const unit = DURATION_UNITS.find((u) => d.seconds % Number(u.value) === 0) ?? DURATION_UNITS.at(-1);
     const numInput = h('input', {
       class: 'input', type: 'number', min: 1, step: 1, inputmode: 'numeric',
-      value: d.seconds / Number(unit.value), 'aria-label': '禁言時長',
+      value: d.seconds / Number(unit.value), 'aria-label': '最長禁言時長',
     });
-    const unitSel = selectEl({ options: DURATION_UNITS, value: unit.value, ariaLabel: '禁言時長的單位' });
+    const unitSel = selectEl({ options: DURATION_UNITS, value: unit.value, ariaLabel: '最長禁言時長的單位' });
     const saveBtn = h('button', {
       type: 'button', class: 'btn btn-primary',
       onclick: async () => {
         const seconds = Number(numInput.value) * Number(unitSel.value);
         if (!Number.isInteger(seconds) || seconds < d.min || seconds > d.max) {
-          toast(`沒有儲存：禁言時長要介於 ${fmtDuration(d.min)}到 28 天之間，請改一下數字或單位。`, { type: 'error' });
+          toast(`沒有儲存：最長禁言時長要介於 ${fmtDuration(d.min)}到 28 天之間，請改一下數字或單位。`, { type: 'error' });
           return;
         }
         const done = await withBusy(saveBtn, () => api.put('/api/ai/timeout-duration', { seconds }));
-        if (done) { toast(`禁言時長已改為 ${fmtDuration(seconds)}`); load(); }
+        if (done) { toast(`最長禁言時長已改為 ${fmtDuration(seconds)}`); load(); }
       },
-    }, icon('save', 'ic-sm'), '儲存時長');
+    }, icon('save', 'ic-sm'), '儲存最長時長');
     const resetBtn = d.source === 'panel'
       ? h('button', {
         type: 'button', class: 'btn btn-sm',
         onclick: async () => {
           const done = await withBusy(resetBtn, () => api.del('/api/ai/timeout-duration'));
-          if (done) { toast('禁言時長已恢復預設'); load(); }
+          if (done) { toast('最長禁言時長已恢復預設'); load(); }
         },
       }, icon('undo', 'ic-sm'), '恢復預設')
       : null;
@@ -161,7 +161,7 @@ export default function mountAiSettings(root, ctx) {
 
     return h('div', { class: 'guild-block' },
       h('div', { class: 'add-row' },
-        h('div', { class: 'field' }, h('span', { class: 'field-label' }, `禁言時長（目前 ${fmtDuration(d.seconds)}）`), numInput),
+        h('div', { class: 'field' }, h('span', { class: 'field-label' }, `最長禁言時長（目前 ${fmtDuration(d.seconds)}）`), numInput),
         h('div', { class: 'field' }, h('span', { class: 'field-label' }, '單位'), unitSel),
         saveBtn,
       ),
@@ -222,7 +222,7 @@ export default function mountAiSettings(root, ctx) {
           addBtn,
         )),
       ],
-      note: '名單上的人 @Bot 或用 /ai ask 認真辱罵 Bot 時，AI 會依上方設定的時長禁言他，並回嗆一句。開玩笑的吐槽不算；語音對話不會觸發；權限比 Bot 高的人（例如管理員）禁言不了。也可以用環境變數 AI_TIMEOUT_USERS 指定，那些人只能改環境變數移除。',
+      note: '名單上的人 @Bot 或用 /ai ask 認真辱罵 Bot 時，AI 會依辱罵的嚴重程度（1～5 級）禁言他，並回嗆一句：第 1 級禁言最長時長的 1/5，第 5 級禁言滿最長時長。開玩笑的吐槽不算；語音對話不會觸發；權限比 Bot 高的人（例如管理員）禁言不了。也可以用環境變數 AI_TIMEOUT_USERS 指定，那些人只能改環境變數移除。',
     });
   }
 
