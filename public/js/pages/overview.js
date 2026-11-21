@@ -3,7 +3,7 @@
 import { h, icon, setVar } from '../dom.js';
 import { api } from '../api.js';
 import { fmtCompact, fmtDateTime, fmtDuration, fmtInt, fmtPercent } from '../format.js';
-import { avatar, card, emptyState, errorState, loadingState, statusBadge, toastError } from '../ui.js';
+import { avatar, card, emptyState, errorState, freshness, loadingState, statusBadge, toastError } from '../ui.js';
 
 const CHECK = {
   ok: ['good', '正常'],
@@ -12,6 +12,7 @@ const CHECK = {
   disabled: ['neutral', '未設定'],
 };
 const MODULE = { ok: ['is-good', 'check', '正常'], warn: ['is-warn', 'alert', '降級運作'], off: ['is-off', 'x', '未啟用'] };
+const UNKNOWN = ['neutral', '未知'];
 const VOICE = { ready: ['good', '已連線'], signalling: ['warn', '連線中'], connecting: ['warn', '連線中'], disconnected: ['bad', '已斷線'] };
 
 function stat(label, value, sub, extra) {
@@ -34,8 +35,9 @@ function budgetMeter(used, budget) {
   return meter;
 }
 
-function checkRow(name, check, detail) {
-  const [kind, text] = CHECK[check.status] ?? CHECK.down;
+function checkRow(name, check, detail, stale) {
+  // 「未設定」是設定上的事實，資料過期也不會變，不要改成「未知」
+  const [kind, text] = stale && check.status !== 'disabled' ? UNKNOWN : CHECK[check.status] ?? CHECK.down;
   return h('div', { class: 'row' },
     h('div', { class: 'row-main' }, h('div', { class: 'row-title' }, name), detail ? h('div', { class: 'row-sub' }, detail) : null),
     statusBadge(kind, text),
@@ -49,32 +51,44 @@ function probeDetail(check) {
 }
 
 export default function mountOverview(root, ctx) {
-  let loaded = false;
+  let last = null;
+  // 連續更新失敗時：數值變灰、狀態改成「未知」，用最後一次的資料重畫
+  const fresh = freshness({
+    onStaleChange: (stale) => {
+      root.classList.toggle('is-stale', stale);
+      if (last) render(last);
+    },
+  });
   const refreshBtn = h('button', { type: 'button', class: 'btn btn-sm', onclick: () => load(true) }, icon('refresh', 'ic-sm'), '重新整理');
-  ctx.setActions(refreshBtn);
+  ctx.setActions(fresh.stamp, refreshBtn);
   root.append(loadingState());
 
   async function load(manual = false) {
-    if (loaded) root.classList.add('is-refreshing');
+    if (last) root.classList.add('is-refreshing');
     try {
       const data = await api.get('/api/overview');
       if (ctx.disposed) return;
+      last = data;
       render(data);
-      loaded = true;
+      fresh.ok();
       if (manual) ctx.refreshBotChip();
     } catch (err) {
       if (ctx.disposed) return;
-      if (!loaded) root.replaceChildren(errorState(err, () => load(true)));
-      else if (manual) toastError(err);
+      if (!last) root.replaceChildren(errorState(err, () => load(true)));
+      else {
+        fresh.fail();
+        if (manual) toastError(err);
+      }
     } finally {
       root.classList.remove('is-refreshing');
     }
   }
 
   function render(d) {
+    const { stale } = fresh;
     const { checks } = d.health;
     const discord = checks.discord;
-    const [dKind, dText] = CHECK[discord.status] ?? CHECK.down;
+    const [dKind, dText] = stale ? UNKNOWN : CHECK[discord.status] ?? CHECK.down;
 
     const hero = h('section', { class: 'card hero' },
       avatar({ url: d.bot?.avatarUrl, name: d.bot?.name, size: 'lg' }),
@@ -107,9 +121,9 @@ export default function mountOverview(root, ctx) {
       title: '外部服務',
       iconName: 'server',
       body: h('div', { class: 'rows' },
-        checkRow('Discord Gateway', discord, `狀態 ${discord.wsStatus}・${fmtInt(discord.guilds)} 個伺服器`),
-        checkRow('喚醒詞服務（OWW）', checks.oww, probeDetail(checks.oww)),
-        checkRow('YouTube PO Token 服務', checks.potProvider, probeDetail(checks.potProvider)),
+        checkRow('Discord Gateway', discord, `狀態 ${discord.wsStatus}・${fmtInt(discord.guilds)} 個伺服器`, stale),
+        checkRow('喚醒詞服務（OWW）', checks.oww, probeDetail(checks.oww), stale),
+        checkRow('YouTube PO Token 服務', checks.potProvider, probeDetail(checks.potProvider), stale),
       ),
       tight: true,
       note: 'Discord 斷線超過 60 秒時，健康檢查會回報不健康；其他服務離線時 Bot 會降級運作。',
@@ -122,7 +136,7 @@ export default function mountOverview(root, ctx) {
       tight: true,
       body: d.voice.length
         ? h('div', { class: 'rows' }, d.voice.map((v) => {
-          const [kind, text] = VOICE[v.status] ?? ['warn', v.status];
+          const [kind, text] = stale ? UNKNOWN : VOICE[v.status] ?? ['warn', v.status];
           const parts = [v.channelName ? `🔊 ${v.channelName}` : '頻道未知'];
           if (v.listeners != null) parts.push(`${v.listeners} 人在頻道`);
           return h('div', { class: 'row' },
@@ -191,6 +205,7 @@ export default function mountOverview(root, ctx) {
 
     // 原生 replaceChildren 會把 null 變成文字「null」，沒有崩潰紀錄時不要傳進去
     root.replaceChildren(...[
+      fresh.banner,
       hero,
       stats,
       crash,

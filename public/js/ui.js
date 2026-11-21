@@ -1,10 +1,16 @@
 // 共用的介面元件：Toast、對話框、開關、分段選擇、頭像、各種狀態畫面
 
 import { h, icon } from './dom.js';
+import { fmtTime } from './format.js';
 
 // ── Toast ──────────────────────────────────────────────
+// 容器會在 body 和開著的對話框之間搬來搬去（見 homeToasts），先記住它，不要每次用 id 找
+let toastBox = null;
+const toastsEl = () => (toastBox ??= document.getElementById('toasts'));
+
 export function toast(message, { type = 'success', timeout = 3200 } = {}) {
-  const box = document.getElementById('toasts');
+  const box = toastsEl();
+  if (!box) return;
   const iconName = type === 'error' ? 'alert' : type === 'info' ? 'info' : 'check';
   const el = h('div', { class: ['toast', `toast-${type}`], role: type === 'error' ? 'alert' : null }, icon(iconName), h('span', null, message));
   box.append(el);
@@ -37,18 +43,34 @@ export function openModal({ title, body, footer, wide = false, onClose, beforeCl
   // 點背景關閉（點在 dialog 本身而不是內容上）
   dialog.addEventListener('click', (e) => { if (e.target === dialog) requestClose(); });
   dialog.addEventListener('cancel', (e) => { e.preventDefault(); requestClose(); });
-  dialog.addEventListener('close', () => { dialog.remove(); onClose?.(); });
+  // 先把提示訊息的容器搬回去再移除對話框，不然容器會跟著對話框一起被刪掉
+  dialog.addEventListener('close', () => { homeToasts(); dialog.remove(); onClose?.(); });
   document.body.append(dialog);
   dialog.showModal();
+  homeToasts();
   return { dialog, close };
 }
 
-/** 確認對話框，回傳 Promise<boolean> */
-export function confirmDialog({ title, message, confirmText = '確定', danger = false }) {
+// showModal() 會把對話框放進 top layer，body 底下的 #toasts 再高的 z-index 都會被遮罩蓋住；
+// 所以有對話框開著時，把提示訊息的容器搬進最上層的對話框，全部關閉後再搬回 body
+function homeToasts() {
+  const box = toastsEl();
+  if (!box) return;
+  const top = [...document.querySelectorAll('dialog.modal[open]')].pop() ?? document.body;
+  if (box.parentElement !== top) top.append(box);
+}
+
+/**
+ * 確認對話框，回傳 Promise<boolean>
+ * confirmText 必填，寫具體動作（例如「刪除人格」），不要用「確定」；
+ * danger 時預設聚焦「取消」，避免連按 Enter 就執行危險操作
+ */
+export function confirmDialog({ title, message, confirmText, cancelText = '取消', danger = false }) {
+  if (!confirmText) console.warn('confirmDialog: 缺少 confirmText，請寫具體的動作', title);
   return new Promise((resolve) => {
     let result = false;
-    const ok = h('button', { type: 'button', class: ['btn', danger ? 'btn-danger-solid' : 'btn-primary'] }, confirmText);
-    const cancel = h('button', { type: 'button', class: 'btn' }, '取消');
+    const ok = h('button', { type: 'button', class: ['btn', danger ? 'btn-danger-solid' : 'btn-primary'] }, confirmText || '繼續');
+    const cancel = h('button', { type: 'button', class: 'btn' }, cancelText);
     const modal = openModal({
       title,
       body: h('p', { class: 'confirm-text' }, message),
@@ -57,8 +79,48 @@ export function confirmDialog({ title, message, confirmText = '確定', danger =
     });
     ok.addEventListener('click', () => { result = true; modal.close(); });
     cancel.addEventListener('click', () => modal.close());
-    ok.focus();
+    (danger ? cancel : ok).focus();
   });
+}
+
+/**
+ * 背景自動更新的新鮮度：成功時顯示「更新於 16:27:05」，
+ * 連續失敗 2 次後顯示琥珀色常駐警告，並呼叫 onStaleChange(true) 讓頁面把數值變灰、狀態改成「未知」；
+ * 恢復後自動收起
+ */
+export function freshness({ onStaleChange } = {}) {
+  let lastOk = 0;
+  let fails = 0;
+  let stale = false;
+  const stamp = h('span', { class: 'hint updated-at', hidden: true });
+  const text = h('span');
+  const banner = h('div', { class: 'callout callout-warn stale-banner', role: 'status', hidden: true }, icon('alert', 'ic-sm'), text);
+  const setStale = (v) => {
+    if (v === stale) return;
+    stale = v;
+    banner.hidden = !v;
+    onStaleChange?.(v);
+  };
+  return {
+    stamp,
+    banner,
+    get stale() { return stale; },
+    ok() {
+      lastOk = Date.now();
+      fails = 0;
+      stamp.hidden = false;
+      stamp.textContent = `更新於 ${fmtTime(lastOk)}`;
+      setStale(false);
+    },
+    fail() {
+      fails += 1;
+      if (fails < 2) return;
+      text.textContent = lastOk
+        ? `無法更新狀態（${fmtTime(lastOk)} 之後的資料沒有取得），正在重試…`
+        : '無法更新狀態，正在重試…';
+      setStale(true);
+    },
+  };
 }
 
 /** 執行非同步動作時讓按鈕顯示轉圈、暫時停用；失敗時顯示錯誤 Toast，回傳是否成功 */

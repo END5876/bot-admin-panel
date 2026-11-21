@@ -61,9 +61,9 @@ export default function mountNotify(root, ctx) {
         type: 'button', class: 'btn btn-sm btn-ghost btn-danger', 'aria-label': `移除 #${c.name ?? c.id}`,
         onclick: async () => {
           const ok = await confirmDialog({
-            title: '移除通知頻道',
+            title: `移除通知頻道${c.name ? ` #${c.name}` : ''}？`,
             message: `之後不會再把 ${p.name} 的限免遊戲推播到 ${c.name ? `#${c.name}` : '這個頻道'}。`,
-            confirmText: '移除',
+            confirmText: '移除頻道',
             danger: true,
           });
           if (!ok) return;
@@ -108,7 +108,7 @@ export default function mountNotify(root, ctx) {
 
   async function checkNow(p, button) {
     const ok = await confirmDialog({
-      title: `立即檢查 ${p.name} 限免`,
+      title: `立即檢查 ${p.name} 限免？`,
       message: `現在就檢查一次；有還沒通知過的限免遊戲，會馬上推播到 ${p.channels.length} 個通知頻道（和每 30 分鐘的定時檢查是同一個流程，不會重複推播）。`,
       confirmText: '檢查並推播',
     });
@@ -135,9 +135,9 @@ export default function mountNotify(root, ctx) {
             const removeBtn = h('button', { type: 'button', class: 'btn btn-sm btn-ghost btn-danger' }, icon('trash', 'ic-sm'), '移除紀錄');
             removeBtn.addEventListener('click', async () => {
               const ok = await confirmDialog({
-                title: '移除通知紀錄',
-                message: `移除「${item.name ?? item.id}」的紀錄後，下次檢查時如果它還在限免，會再推播一次。`,
-                confirmText: '移除',
+                title: `移除「${item.name ?? item.id}」的通知紀錄？`,
+                message: '移除後，下次檢查時如果它還在限免，會再推播一次。',
+                confirmText: '移除紀錄',
               });
               if (!ok) return;
               const done = await withBusy(removeBtn, () => api.del(`/api/notify/${seg(p.key)}/history/${seg(item.id)}`));

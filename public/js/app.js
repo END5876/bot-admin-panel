@@ -167,7 +167,7 @@ function showLogin(message = '') {
 }
 
 async function logout() {
-  if (current?.ctx.isDirty() && !await confirmDialog({ title: '還有未儲存的變更', message: '登出後這些變更會遺失，確定要登出嗎？', confirmText: '登出' })) return;
+  if (current?.ctx.isDirty() && !await confirmDialog({ title: '放棄未儲存的變更並登出？', message: '登出後，剛剛改的內容會遺失。', confirmText: '放棄並登出', cancelText: '繼續編輯' })) return;
   try { await api.post('/api/logout'); } catch {}
   showLogin('已登出');
 }
@@ -241,6 +241,7 @@ function buildShell() {
 }
 
 function botStatus(b) {
+  if (botsStale) return ['neutral', '狀態未知'];
   if (!b?.online) return ['bad', '無法連線'];
   if (!b.ready) return ['warn', '連線 Discord 中…'];
   return ['good', `線上 · ${b.ping >= 0 ? `${b.ping} ms` : '—'}`];
@@ -293,6 +294,8 @@ function paintBots() {
 async function loadBots() {
   const res = await api.get('/api/bots');
   bots = res.bots;
+  botsFails = 0;
+  botsStale = false;
   if (!res.panelVersion) return;
   if (!panelVersion) panelVersion = res.panelVersion;
   else if (res.panelVersion !== panelVersion && !outdated) {
@@ -301,11 +304,18 @@ async function loadBots() {
   }
 }
 
+// 背景更新 Bot 清單連續失敗 2 次後，狀態改成「未知」，不要繼續顯示舊的「線上」
+let botsFails = 0;
+let botsStale = false;
 async function refreshBots() {
   try {
     await loadBots();
-    paintBots();
-  } catch {}
+  } catch {
+    botsFails += 1;
+    if (botsFails < 2) return;
+    botsStale = true;
+  }
+  paintBots();
 }
 
 // ════════════════════════════════════════════════════════
@@ -340,6 +350,8 @@ function createCtx() {
     setActions(...nodes) { if (shell) fill(shell.actions, nodes); },
     /** 這一頁屬於哪一隻 Bot（PANEL_BOTS 的代號） */
     bot: currentBot,
+    /** 這一頁所屬 Bot 的顯示名稱（危險操作的確認框、提示要寫出是哪一隻 Bot） */
+    botName: () => botName(botById(currentBot)),
     /** 目前的 Bot 是否支援某個功能（例如 voice:join） */
     has: (feature) => botFeatures(botById(currentBot)).has(feature),
     /** 所有 Bot 的代號與名稱（操作紀錄頁的篩選） */
@@ -398,7 +410,7 @@ async function route() {
   }
 
   if (current?.ctx.isDirty()) {
-    const leave = await confirmDialog({ title: '還有未儲存的變更', message: '離開這一頁後，尚未儲存的內容會遺失。確定要離開嗎？', confirmText: '離開' });
+    const leave = await confirmDialog({ title: '放棄未儲存的變更並離開？', message: '離開這一頁後，還沒儲存的內容會遺失。', confirmText: '放棄並離開', cancelText: '繼續編輯' });
     if (!leave) {
       suppressHash = true;
       location.hash = pageHash(current.id, current.bot);

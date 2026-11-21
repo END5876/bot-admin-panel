@@ -37,15 +37,15 @@ export default function mountMaintenance(root, ctx) {
     const syncBtn = h('button', { type: 'button', class: 'btn' }, icon('refresh', 'ic-sm'), '強制重新同步');
     syncBtn.addEventListener('click', async () => {
       const ok = await confirmDialog({
-        title: '強制重新同步 Slash 指令',
-        message: `把目前的 ${d.local.length} 個指令重新註冊到 Discord（${d.scope === 'global' ? '全域' : '測試伺服器'}）。\n全域指令可能要幾分鐘才會在所有客戶端更新。`,
-        confirmText: '同步',
+        title: `重新同步 ${ctx.botName()} 的 Slash 指令？`,
+        message: `把 ${ctx.botName()} 目前的 ${d.local.length} 個指令重新註冊到 Discord（${d.scope === 'global' ? '全域' : '測試伺服器'}）。\n全域指令可能要幾分鐘才會在所有客戶端更新。`,
+        confirmText: '重新同步指令',
       });
       if (!ok) return;
       let res = null;
       const done = await withBusy(syncBtn, async () => { res = await api.post('/api/commands/sync'); });
       if (done) {
-        toast(`已同步 ${res.count} 個指令到 Discord`);
+        toast(`已把 ${ctx.botName()} 的 ${res.count} 個指令同步到 Discord`);
         loadCommands();
       }
     });
@@ -101,16 +101,16 @@ export default function mountMaintenance(root, ctx) {
     const clearBtn = h('button', { type: 'button', class: 'btn btn-danger', disabled: d.downloads.count === d.downloads.inUse }, icon('trash', 'ic-sm'), '清除下載快取');
     clearBtn.addEventListener('click', async () => {
       const ok = await confirmDialog({
-        title: '清除下載快取',
-        message: `刪除 ${d.downloads.count - d.downloads.inUse} 個線上歌曲的下載快取（約 ${d.downloads.sizeMB} MB）。\n本地音樂不會被刪；正在播放或排在佇列裡的歌會保留。之後再點同一首歌會重新下載。`,
-        confirmText: '清除',
+        title: `清除 ${ctx.botName()} 的下載快取？`,
+        message: `刪除 ${ctx.botName()} 的 ${d.downloads.count - d.downloads.inUse} 個線上歌曲下載快取（約 ${d.downloads.sizeMB} MB）。\n本地音樂不會被刪；正在播放或排在佇列裡的歌會保留。之後再點同一首歌會重新下載。`,
+        confirmText: '清除下載快取',
         danger: true,
       });
       if (!ok) return;
       let res = null;
       const done = await withBusy(clearBtn, async () => { res = await api.post('/api/cache/clear'); });
       if (!done) return;
-      toast(`已刪除 ${res.deleted} 個檔案、釋放 ${res.freedMB} MB${res.skipped ? `（${res.skipped} 個使用中保留）` : ''}`);
+      toast(`已清除 ${ctx.botName()} 的下載快取：刪除 ${res.deleted} 個檔案、釋放 ${res.freedMB} MB${res.skipped ? `（${res.skipped} 個使用中保留）` : ''}`);
       if (res.failed.length) toast(`有 ${res.failed.length} 個檔案刪不掉：${res.failed.slice(0, 3).join('、')}`, { type: 'error' });
       loadCache();
     });
@@ -206,7 +206,7 @@ export default function mountMaintenance(root, ctx) {
     const changes = preview.files.filter((f) => f.status !== 'same');
     const created = preview.createdAt ? fmtDateTime(Date.parse(preview.createdAt)) : '未知';
     const confirmBtn = h('button', { type: 'button', class: 'btn btn-danger-solid', disabled: !changes.length },
-      icon('power', 'ic-sm'), preview.supervised ? '還原並重新啟動' : '還原並關閉 Bot');
+      icon('power', 'ic-sm'), preview.supervised ? `還原並重新啟動 ${ctx.botName()}` : `還原並關閉 ${ctx.botName()}`);
     const cancelBtn = h('button', { type: 'button', class: 'btn' }, '取消');
 
     const rows = preview.files.map((f) => {
@@ -227,10 +227,10 @@ export default function mountMaintenance(root, ctx) {
           h('ul', { class: 'restore-skipped' }, preview.skipped.map((s) => h('li', null, h('span', { class: 'mono' }, s.path), `：${s.reason}`))))) : null,
       h('div', { class: 'callout' }, icon('info', 'ic-sm'), h('span', null,
         preview.supervised
-          ? 'Bot 會重新啟動（約 10～60 秒），啟動時套用這些檔案；播放中的音樂會在重新啟動後接續。'
-          : '這隻 Bot 沒有自動重啟：確認後 Bot 會關閉，你手動啟動時才會套用這些檔案。')),
+          ? `${ctx.botName()} 會重新啟動（約 10～60 秒），啟動時套用這些檔案；播放中的音樂會在重新啟動後接續。`
+          : `${ctx.botName()} 沒有自動重啟：確認後會關閉，你手動啟動時才會套用這些檔案。`)),
     );
-    const modal = openModal({ title: '還原設定備份', body, wide: true, footer: [h('span', { class: 'spacer' }), cancelBtn, confirmBtn] });
+    const modal = openModal({ title: `還原 ${ctx.botName()} 的設定備份`, body, wide: true, footer: [h('span', { class: 'spacer' }), cancelBtn, confirmBtn] });
     cancelBtn.addEventListener('click', () => modal.close());
     confirmBtn.addEventListener('click', async () => {
       confirmBtn.disabled = true;
@@ -239,7 +239,7 @@ export default function mountMaintenance(root, ctx) {
         const before = await api.get('/api/system');
         const res = await api.post('/api/backup/restore', { backup });
         modal.close();
-        toast(`已暫存 ${res.staged} 個檔案，Bot 重新啟動時套用`);
+        toast(`已暫存 ${res.staged} 個檔案，${ctx.botName()} 重新啟動時套用`);
         waitForRestart(before);
       } catch (err) {
         toastError(err);
@@ -260,14 +260,16 @@ export default function mountMaintenance(root, ctx) {
   }
 
   function renderRestart(sys) {
-    const btn = h('button', { type: 'button', class: 'btn btn-danger-solid' }, icon('power', 'ic-sm'), sys.supervised ? '重新啟動 Bot' : '關閉 Bot');
+    const name = ctx.botName();
+    const action = sys.supervised ? `重新啟動 ${name}` : `關閉 ${name}`;
+    const btn = h('button', { type: 'button', class: 'btn btn-danger-solid' }, icon('power', 'ic-sm'), action);
     btn.addEventListener('click', async () => {
       const ok = await confirmDialog({
-        title: sys.supervised ? '重新啟動 Bot' : '關閉 Bot',
+        title: `${action}？`,
         message: sys.supervised
-          ? 'Bot 會中斷連線約 10～60 秒後自動重新啟動。播放中的音樂會在重新啟動後接續播放。'
-          : '目前沒有 supervisor 或容器的自動重啟（例如用 npm start 或 start.bat 啟動），關閉後「不會」自動重新啟動，需要你手動再啟動。確定要關閉嗎？',
-        confirmText: sys.supervised ? '重新啟動' : '關閉',
+          ? `${name} 會中斷連線約 10～60 秒後自動重新啟動。播放中的音樂會在重新啟動後接續播放。`
+          : `${name} 沒有 supervisor 或容器的自動重啟（例如用 npm start 或 start.bat 啟動），關閉後「不會」自動重新啟動，需要你手動再啟動。`,
+        confirmText: action,
         danger: true,
       });
       if (!ok) return;
@@ -276,7 +278,7 @@ export default function mountMaintenance(root, ctx) {
     });
 
     restartSlot.replaceChildren(card({
-      title: sys.supervised ? '重新啟動' : '關閉 Bot',
+      title: sys.supervised ? '重新啟動' : `關閉 ${name}`,
       iconName: 'power',
       body: h('dl', { class: 'kv' },
         h('dt', null, '已運行'), h('dd', null, fmtDuration(sys.uptimeSec)),
@@ -290,7 +292,8 @@ export default function mountMaintenance(root, ctx) {
 
   // 等 Bot 回來：/api/system 的運行時間變短代表已經是新的程序，再等它連上 Discord
   function waitForRestart(before) {
-    const message = h('div', null, before.supervised ? '正在重新啟動 Bot…' : 'Bot 已關閉。');
+    const name = ctx.botName();
+    const message = h('div', null, before.supervised ? `正在重新啟動 ${name}…` : `${name} 已關閉。`);
     const sub = h('div', { class: 'hint' }, before.supervised ? '大約 10～60 秒，完成後這個畫面會自動關閉' : '手動重新啟動後，這個畫面會自動關閉');
     const overlay = h('div', { class: 'restart-overlay', role: 'alertdialog', 'aria-live': 'assertive' },
       h('div', { class: 'card restart-box' }, h('span', { class: 'spinner', 'aria-hidden': 'true' }), message, sub));
@@ -306,7 +309,7 @@ export default function mountMaintenance(root, ctx) {
 
     const poll = async () => {
       if (Date.now() - startedAt > RESTART_TIMEOUT_MS && before.supervised) {
-        finish('Bot 超過 3 分鐘還沒回來，請查看部署平台的 log', false);
+        finish(`${name} 超過 3 分鐘還沒回來，請查看部署平台的 log`, false);
         return;
       }
       try {
@@ -314,7 +317,7 @@ export default function mountMaintenance(root, ctx) {
         if (sys.uptimeSec < before.uptimeSec || sys.pid !== before.pid) {
           const me = await api.get('/api/me');
           if (me.ready) {
-            finish('Bot 已重新啟動', true);
+            finish(`${name} 已重新啟動`, true);
             return;
           }
           message.textContent = '已重新啟動，正在連線 Discord…';

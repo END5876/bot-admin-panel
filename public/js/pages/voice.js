@@ -5,7 +5,7 @@ import { fill, h, icon, setVar } from '../dom.js';
 import { api, qs, seg } from '../api.js';
 import { fmtClock, fmtInt } from '../format.js';
 import {
-  avatar, card, confirmDialog, emptyState, errorState, loadingState, openModal, segmented, selectEl, statusBadge,
+  avatar, card, confirmDialog, emptyState, errorState, freshness, loadingState, openModal, segmented, selectEl, statusBadge,
   switchControl, toast, toastError, withBusy,
 } from '../ui.js';
 
@@ -43,8 +43,17 @@ export default function mountVoice(root, ctx) {
   let autoJoinPending = false; // 下拉選單選了新頻道但還沒套用：輪詢時不要蓋掉
   let idleSig = '';
 
+  let staleAt = 0;
+  // 連續更新失敗時：數值變灰、連線狀態改成「未知」、播放進度停止推算
+  const fresh = freshness({
+    onStaleChange: (stale) => {
+      staleAt = performance.now();
+      root.classList.toggle('is-stale', stale);
+      if (data) render();
+    },
+  });
   const refreshBtn = h('button', { type: 'button', class: 'btn btn-sm', onclick: () => load(true) }, icon('refresh', 'ic-sm'), '重新整理');
-  ctx.setActions(refreshBtn);
+  ctx.setActions(fresh.stamp, refreshBtn);
   root.append(loadingState());
 
   async function load(manual = false) {
@@ -53,16 +62,20 @@ export default function mountVoice(root, ctx) {
       if (ctx.disposed) return;
       data = next;
       fetchedAt = performance.now();
+      fresh.ok();
       render();
     } catch (err) {
       if (ctx.disposed) return;
       if (!data) root.replaceChildren(errorState(err, () => load(true)));
-      else if (manual) toastError(err);
+      else {
+        fresh.fail();
+        if (manual) toastError(err);
+      }
     }
   }
 
   function render() {
-    if (!autoJoinSlot.isConnected) root.replaceChildren(autoJoinSlot, guildSlot, idleSlot);
+    if (!autoJoinSlot.isConnected) root.replaceChildren(fresh.banner, autoJoinSlot, guildSlot, idleSlot);
     renderAutoJoin();
     renderGuilds();
   }
@@ -156,7 +169,7 @@ export default function mountVoice(root, ctx) {
     } else {
       const els = active.map((g) => {
         // 播放進度每秒在本地推算，不列入比對；其餘狀態有變才重畫，避免使用者正在操作的按鈕、選單被換掉
-        const sig = JSON.stringify([{ ...g, music: g.music && { ...g.music, positionMs: undefined } }, ajSig]);
+        const sig = JSON.stringify([{ ...g, music: g.music && { ...g.music, positionMs: undefined } }, ajSig, fresh.stale]);
         let entry = cards.get(g.id);
         if (!entry || entry.sig !== sig) {
           entry = { sig, ...guildCard(g) };
@@ -261,9 +274,9 @@ export default function mountVoice(root, ctx) {
   async function leave(g, button) {
     const note = autoJoinNote(g);
     const ok = await confirmDialog({
-      title: '離開語音頻道',
-      message: `要讓 Bot 離開「${g.name}」的語音頻道嗎？正在播放的音樂會停止、佇列會清空，喚醒詞監聽也會關閉。${note ? `\n\n${note}` : ''}`,
-      confirmText: '離開',
+      title: `讓 ${ctx.botName()} 離開「${g.name}」的語音頻道？`,
+      message: `正在播放的音樂會停止、佇列會清空，喚醒詞監聽也會關閉。${note ? `\n\n${note}` : ''}`,
+      confirmText: '離開語音頻道',
       danger: true,
     });
     if (!ok) return;
@@ -276,7 +289,7 @@ export default function mountVoice(root, ctx) {
 
   function guildCard(g) {
     const v = g.voice;
-    const [kind, text] = v ? (VOICE_STATUS[v.status] ?? ['warn', v.status]) : ['neutral', '未連線'];
+    const [kind, text] = fresh.stale ? ['neutral', '未知'] : v ? (VOICE_STATUS[v.status] ?? ['warn', v.status]) : ['neutral', '未連線'];
     const voiceLine = v
       ? [icon('volume', 'ic-sm'), ' ', v.channelName ?? '（頻道未知）', v.listeners != null ? `・${v.listeners} 人在頻道` : '']
       : ['不在語音頻道'];
@@ -335,12 +348,14 @@ export default function mountVoice(root, ctx) {
       const music = state.music;
       if (!music) return;
       const running = music.status === 'playing';
-      const pos = music.positionMs + (running ? performance.now() - fetchedAt : 0);
+      // 資料過期時停在最後推算到的位置，不再往前走
+      const now = fresh.stale ? staleAt : performance.now();
+      const pos = music.positionMs + (running ? now - fetchedAt : 0);
       const totalMs = (music.current.durationSec || 0) * 1000;
       elapsedEl.textContent = fmtClock(totalMs ? Math.min(pos, totalMs) : pos);
       totalEl.textContent = totalMs ? fmtClock(totalMs) : '--:--';
       setVar(track, '--w', totalMs ? `${Math.min(100, (pos / totalMs) * 100)}%` : '0%');
-      statusEl.textContent = PLAYER_STATUS[music.status] ?? music.status;
+      statusEl.textContent = fresh.stale ? '狀態未知' : PLAYER_STATUS[music.status] ?? music.status;
     };
     tick(g);
 
@@ -348,7 +363,7 @@ export default function mountVoice(root, ctx) {
     const stopBtn = h('button', {
       type: 'button', class: 'btn btn-danger',
       onclick: () => act(g, stopBtn, { action: 'stop' }, {
-        confirm: { title: '停止播放', message: `要停止 ${g.name} 的音樂並清空佇列嗎？`, confirmText: '停止', danger: true },
+        confirm: { title: `停止 ${g.name} 的播放？`, message: '目前這首會停止，佇列也會清空。', confirmText: '停止並清空', danger: true },
       }),
     }, icon('stop', 'ic-sm'), '停止');
     const loopSeg = segmented({
@@ -386,7 +401,7 @@ export default function mountVoice(root, ctx) {
     const clearBtn = h('button', {
       type: 'button', class: 'btn btn-sm btn-danger', disabled: !m.queueLength,
       onclick: () => act(g, clearBtn, { action: 'clearQueue' }, {
-        confirm: { title: '清空佇列', message: `要清空 ${g.name} 的佇列（${m.queueLength} 首）嗎？目前這首會繼續播放。`, confirmText: '清空', danger: true },
+        confirm: { title: `清空 ${g.name} 的 ${m.queueLength} 首佇列？`, message: '目前這首會繼續播放。', confirmText: '清空佇列', danger: true },
       }),
     }, icon('trash', 'ic-sm'), '清空');
 

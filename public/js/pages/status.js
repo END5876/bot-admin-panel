@@ -149,7 +149,7 @@ export default function mountStatus(root, ctx) {
       let res = null;
       const ok = await withBusy(sendBtn, async () => { res = await api.post('/api/messages', { channelId: channelSel.value, content: text }); });
       if (!ok) return;
-      toast(`已發送到 ${channelName}`);
+      toast(`已用 ${ctx.botName()} 發送到 ${channelName}`);
       sent.unshift({ content: text, channel: channelName, url: res.url, at: Date.now() });
       content.value = '';
       paint();
@@ -157,7 +157,7 @@ export default function mountStatus(root, ctx) {
     });
 
     messageSlot.replaceChildren(card({
-      title: '以 Bot 身分發訊息',
+      title: `以 ${ctx.botName()} 身分發訊息`,
       iconName: 'send',
       body: h('div', { class: 'form' },
         h('div', { class: 'field' }, h('span', { class: 'field-label' }, '頻道'), channelSel),

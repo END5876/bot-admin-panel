@@ -146,9 +146,9 @@ export default function mountResponses(root, ctx) {
 
   async function remove(entry) {
     const ok = await confirmDialog({
-      title: '刪除規則',
-      message: `確定要刪除${TYPE_LABEL[entry.type]}「${entry.keyword}」嗎？`,
-      confirmText: '刪除',
+      title: `刪除規則「${entry.keyword}」？`,
+      message: '刪除後，Bot 不會再回應這個關鍵字。',
+      confirmText: '刪除規則',
       danger: true,
     });
     if (!ok) return false;
@@ -225,7 +225,7 @@ export default function mountResponses(root, ctx) {
       title: isNew ? '新增自動回應' : '編輯自動回應',
       body: form,
       footer: [deleteBtn, h('span', { class: 'spacer' }), cancelBtn, saveBtn],
-      beforeClose: () => snapshot() === initial || confirmDialog({ title: '放棄變更？', message: '剛剛輸入的內容還沒有儲存。', confirmText: '放棄' }),
+      beforeClose: () => snapshot() === initial || confirmDialog({ title: '放棄變更？', message: '剛剛輸入的內容還沒有儲存。', confirmText: '放棄變更', cancelText: '繼續編輯' }),
     });
     keyword.focus();
 
@@ -248,7 +248,7 @@ export default function mountResponses(root, ctx) {
           const overwrite = await confirmDialog({
             title: '關鍵字已經存在',
             message: `${err.message}，要用這次的內容覆蓋它嗎？`,
-            confirmText: '覆蓋',
+            confirmText: '覆蓋原本的規則',
             danger: true,
           });
           if (!overwrite) return;

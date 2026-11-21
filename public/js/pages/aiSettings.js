@@ -68,9 +68,10 @@ export default function mountAiSettings(root, ctx) {
   // ── 清除頻道的對話記憶（群聊的 Bot：等同 /ai clear all:true）──
   async function clearChannelMemory(g, c, button) {
     const ok = await confirmDialog({
-      title: '清除頻道的對話記憶',
-      message: `要清除「${g.name} › #${c.name ?? c.id}」所有人和 AI 的對話記憶嗎？之後 AI 不會再參考這個頻道先前的對話（效果等同 /ai clear all:true）。`,
-      confirmText: '清除',
+      title: `清除 #${c.name ?? c.id} 的對話記憶？`,
+      message: `「${g.name} › #${c.name ?? c.id}」所有人和 AI 的對話記憶都會清除，之後 AI 不會再參考這個頻道先前的對話（效果等同 /ai clear all:true）。`,
+      confirmText: '清除對話記憶',
+      danger: true,
     });
     if (!ok) return;
     const done = await withBusy(button, () => api.post(`/api/ai/memory/channel/${seg(c.id)}`));
@@ -80,9 +81,10 @@ export default function mountAiSettings(root, ctx) {
   // ── 清除對話記憶（等同對方自己下 /ai clear）─────────────────
   async function clearMemory(user, button) {
     const ok = await confirmDialog({
-      title: '清除對話記憶',
-      message: `要清除 ${user.name ?? user.id} 和 AI 的對話記憶嗎？之後 AI 不會再參考他先前的對話（效果等同他自己下 /ai clear）。`,
-      confirmText: '清除',
+      title: `清除 ${user.name ?? user.id} 的對話記憶？`,
+      message: `${user.name ?? user.id} 和 AI 的對話記憶會清除，之後 AI 不會再參考他先前的對話（效果等同他自己下 /ai clear）。`,
+      confirmText: '清除對話記憶',
+      danger: true,
     });
     if (!ok) return;
     const done = await withBusy(button, () => api.post(`/api/ai/memory/${seg(user.id)}`));
@@ -351,9 +353,9 @@ export default function mountAiSettings(root, ctx) {
         type: 'button', class: 'btn btn-sm btn-ghost btn-danger', 'aria-label': '移除指定',
         onclick: async () => {
           const ok = await confirmDialog({
-            title: '移除人格指定',
+            title: `移除 ${entry.user?.name ?? entry.user?.id} 的人格指定？`,
             message: `移除後，${entry.user?.name ?? entry.user?.id} 會回到預設判斷（環境變數的固定人格或預設模式 ${data.defaultMode}）。`,
-            confirmText: '移除',
+            confirmText: '移除指定',
           });
           if (!ok) return;
           const done = await withBusy(removeBtn, () => api.del(`/api/ai/user-modes/${seg(entry.user.id)}`));

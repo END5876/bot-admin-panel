@@ -180,7 +180,7 @@ export default function mountPrompts(root, ctx) {
 
   async function confirmDiscard() {
     if (!ctx.isDirty()) return true;
-    return confirmDialog({ title: '還有未儲存的變更', message: '切換後，目前編輯中的內容會遺失。確定要切換嗎？', confirmText: '放棄變更' });
+    return confirmDialog({ title: '放棄未儲存的變更？', message: '切換後，目前編輯中的內容會遺失。', confirmText: '放棄變更', cancelText: '繼續編輯' });
   }
 
   async function select(target, { force = false } = {}) {
@@ -269,7 +269,7 @@ export default function mountPrompts(root, ctx) {
     const revertBtn = h('button', {
       type: 'button', class: 'btn',
       onclick: async () => {
-        if (await confirmDialog({ title: '還原變更', message: '要捨棄目前的修改，回到上次儲存的內容嗎？', confirmText: '還原' })) {
+        if (await confirmDialog({ title: '捨棄這次的修改？', message: '會回到上次儲存的內容。', confirmText: '捨棄修改', cancelText: '繼續編輯' })) {
           select(selected, { force: true });
         }
       },
@@ -356,7 +356,7 @@ export default function mountPrompts(root, ctx) {
     const revertBtn = h('button', {
       type: 'button', class: 'btn',
       onclick: async () => {
-        if (await confirmDialog({ title: '還原變更', message: '要捨棄目前的修改，回到上次儲存的內容嗎？', confirmText: '還原' })) {
+        if (await confirmDialog({ title: '捨棄這次的修改？', message: '會回到上次儲存的內容。', confirmText: '捨棄修改', cancelText: '繼續編輯' })) {
           select(selected, { force: true });
         }
       },
@@ -413,11 +413,13 @@ export default function mountPrompts(root, ctx) {
 
   async function removeMode(mode) {
     const users = list?.modes.find((m) => m.key === mode.key)?.users ?? 0;
+    const fallback = list?.modes.find((m) => m.key === list.defaultMode && m.key !== mode.key)?.name;
     const ok = await confirmDialog({
-      title: '刪除人格',
-      message: `確定要刪除「${mode.name}」（${mode.key}.md）嗎？這個動作無法復原。`
-        + (users ? `\n\n目前有 ${users} 位使用者指定這個模式，刪除後他們會改用預設判斷。` : ''),
-      confirmText: '刪除',
+      title: `刪除人格「${mode.name}」？`,
+      message: `刪除後 /ai mode 選單就看不到這個人格`
+        + (users ? `，目前有 ${users} 位使用者指定它，他們會改用${fallback ? `預設人格「${fallback}」` : '預設判斷'}` : '')
+        + '。人格會移到清單下方的「已刪除」，之後可以從那裡還原。',
+      confirmText: '刪除人格',
       danger: true,
     });
     if (!ok) return;

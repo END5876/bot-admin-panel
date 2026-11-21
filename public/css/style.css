@@ -543,6 +543,12 @@ svg.logo .logo-eye { fill: var(--card); }
 .callout > div > details { width: 100%; }
 .callout-warn { background: var(--warn-tint); color: var(--warn-ink); }
 .is-refreshing { opacity: .55; transition: opacity .15s; }
+/* 背景更新連續失敗：顯示琥珀色常駐提示，畫面上的數值變灰，表示可能已經過時 */
+.stale-banner { margin-bottom: 16px; }
+.is-stale .stat-value,
+.is-stale .np-title { color: var(--ink-faint); }
+.is-stale .progress-track > span { background: var(--ink-faint); }
+.updated-at { white-space: nowrap; align-self: center; }
 
 /* ── Toast ────────────────────────────────────────────── */
 .toasts {
@@ -1009,6 +1015,8 @@ svg.ic.flip { transform: rotate(180deg); }
   /* 提示訊息：貼在分頁列上方、佔滿寬度 */
   .toasts { left: 12px; right: 12px; bottom: calc(var(--tabbar-h) + 12px + env(safe-area-inset-bottom, 0px)); justify-items: stretch; }
   .toast { max-width: none; }
+  /* 對話框是從底部滑出的面板，提示訊息改貼在畫面上方，不要擋住對話框的按鈕 */
+  dialog.modal > .toasts { top: calc(12px + env(safe-area-inset-top, 0px)); bottom: auto; }
 
   .log-view { height: calc(100vh - 300px - var(--tabbar-h)); }
   .log-jump { bottom: 12px; }
