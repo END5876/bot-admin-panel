@@ -7,6 +7,7 @@ import { emptyState, errorState, segmented, selectEl } from '../ui.js';
 
 const POLL_MS = 2000;
 const MAX_ROWS = 1000;
+export const LOGS_LEVEL_KEY = 'mousebot-admin-logs-level';
 const LEVEL_RANK = { debug: 0, info: 1, success: 1, warn: 2, error: 3 };
 const LEVEL_ICON = { debug: 'info', info: 'info', success: 'check', warn: 'alert', error: 'x' };
 const LEVEL_NAME = { debug: '除錯', info: '資訊', success: '成功', warn: '警告', error: '錯誤' };
@@ -14,7 +15,12 @@ const LEVEL_NAME = { debug: '除錯', info: '資訊', success: '成功', warn: '
 export default function mountLogs(root, ctx) {
   let entries = [];
   let lastSeq = 0;
+  // 總覽的「看錯誤日誌」會先記下要篩選的等級（只用一次）
   let minLevel = 0;
+  try {
+    minLevel = Number(sessionStorage.getItem(LOGS_LEVEL_KEY)) || 0;
+    sessionStorage.removeItem(LOGS_LEVEL_KEY);
+  } catch {}
   let moduleFilter = '';
   let query = '';
   let paused = false;
@@ -23,7 +29,7 @@ export default function mountLogs(root, ctx) {
   let loaded = false;
 
   const levelSeg = segmented({
-    ariaLabel: '最低顯示等級', value: 0,
+    ariaLabel: '最低顯示等級', value: minLevel,
     options: [{ value: 0, label: '全部' }, { value: 1, label: '資訊以上' }, { value: 2, label: '警告以上' }, { value: 3, label: '只看錯誤' }],
     onChange: (v) => { minLevel = v; renderAll(); },
   });

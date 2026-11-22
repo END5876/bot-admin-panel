@@ -44,14 +44,15 @@ export const fetchInit = () => ({
   headers: { 'x-mousebot-admin': '1' },
 });
 
-async function request(method, path, body) {
+// opts.bot：指定送到哪隻 Bot（預設是目前選擇的 Bot）。等重新啟動這種會跨頁面持續的輪詢要固定問同一隻
+async function request(method, path, body, opts) {
   const init = { ...fetchInit(), method };
   if (body !== undefined) {
     init.headers['content-type'] = 'application/json';
     init.body = JSON.stringify(body);
   }
 
-  const target = botPath(path);
+  const target = botPath(path, opts?.bot ?? currentBot);
   let res;
   try {
     res = await fetch(target, init);
@@ -69,7 +70,7 @@ async function request(method, path, body) {
 }
 
 export const api = {
-  get: (path) => request('GET', path),
+  get: (path, opts) => request('GET', path, undefined, opts),
   post: (path, body = {}) => request('POST', path, body),
   put: (path, body = {}) => request('PUT', path, body),
   del: (path) => request('DELETE', path, {}),

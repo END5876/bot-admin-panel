@@ -284,6 +284,8 @@ export default function mountMaintenance(root, ctx) {
         h('dt', null, '已運行'), h('dd', null, fmtDuration(sys.uptimeSec)),
         h('dt', null, '程序管理'), h('dd', null, sys.supervised ? statusBadge('good', '會自動重新啟動') : statusBadge('warn', '沒有 supervisor（關閉後不會自動啟動）')),
         h('dt', null, 'Node.js'), h('dd', { class: 'mono' }, `${sys.node}・PID ${sys.pid}`),
+        sys.logLevel ? h('dt', null, '記錄等級') : null,
+        sys.logLevel ? h('dd', { class: 'mono' }, `LOG_LEVEL=${sys.logLevel}`) : null,
       ),
       foot: [h('span', { class: 'spacer' }), btn],
       note: '改了 .env（例如模型、額度、權限）之後，需要重新啟動才會生效。',
@@ -291,41 +293,96 @@ export default function mountMaintenance(root, ctx) {
   }
 
   // 等 Bot 回來：/api/system 的運行時間變短代表已經是新的程序，再等它連上 Discord
+  // 等 Bot 回來的提示有兩種樣子：
+  // - 遮罩（只有會自動重啟的 Bot、剛按下時）：顯示已等待秒數，可以按「在背景等待」收成橫幅
+  // - 頁首橫幅：不擋操作，可以切頁、切 Bot、看日誌。沒有自動重啟的 Bot 一開始就是橫幅
+  // 超過 3 分鐘還沒回來時，橫幅改成警告並繼續等，Bot 恢復後自動消失
   function waitForRestart(before) {
     const name = ctx.botName();
-    const message = h('div', null, before.supervised ? `正在重新啟動 ${name}…` : `${name} 已關閉。`);
-    const sub = h('div', { class: 'hint' }, before.supervised ? '大約 10～60 秒，完成後這個畫面會自動關閉' : '手動重新啟動後，這個畫面會自動關閉');
-    const overlay = h('div', { class: 'restart-overlay', role: 'alertdialog', 'aria-live': 'assertive' },
-      h('div', { class: 'card restart-box' }, h('span', { class: 'spinner', 'aria-hidden': 'true' }), message, sub));
-    document.body.append(overlay);
+    // 在背景等待時使用者可能切到別的 Bot：輪詢一律問按下重啟的那一隻
+    const bot = ctx.bot;
+    const message = h('div', { class: 'restart-msg' }, before.supervised ? `正在重新啟動 ${name}…` : `${name} 已關閉，手動啟動後這裡會自動更新。`);
+    const elapsed = h('div', { class: 'hint' });
+    const bgBtn = h('button', { type: 'button', class: 'btn' }, '在背景等待');
+    const box = h('div', { class: 'card restart-box', role: 'status', 'aria-live': 'polite' },
+      h('span', { class: 'spinner', 'aria-hidden': 'true' }), message, elapsed, bgBtn);
+    const overlay = h('div', { class: 'restart-overlay', role: 'dialog', 'aria-modal': 'true', 'aria-label': message.textContent }, box);
     const startedAt = Date.now();
+    let timedOut = false;
+    let inerted = [];
 
-    const finish = (text, ok) => {
+    // 遮罩開著時，背後的畫面不能操作也不能聚焦
+    const setInert = (on) => {
+      if (on) {
+        inerted = [...document.body.children].filter((el) => el !== overlay && el.id !== 'toasts' && el.tagName !== 'SCRIPT' && !el.inert);
+        for (const el of inerted) el.inert = true;
+      } else {
+        for (const el of inerted) el.inert = false;
+        inerted = [];
+      }
+    };
+    const toBanner = () => {
+      setInert(false);
+      bgBtn.remove();
+      overlay.className = 'restart-banner';
+      overlay.removeAttribute('role');
+      overlay.removeAttribute('aria-modal');
+      box.className = 'restart-box';
+    };
+    const remove = () => {
+      clearInterval(clock);
+      setInert(false);
       overlay.remove();
-      if (ok) toast(text); else toast(text, { type: 'error' });
+    };
+    bgBtn.addEventListener('click', toBanner);
+
+    const paintElapsed = () => {
+      const sec = Math.round((Date.now() - startedAt) / 1000);
+      elapsed.textContent = timedOut
+        ? `已等待 ${fmtDuration(sec)}。請查看部署平台的 log，${name} 恢復後這裡會自動消失。`
+        : before.supervised ? `已等待 ${sec} 秒（通常 10～60 秒）` : `已等待 ${fmtDuration(sec)}`;
+    };
+    paintElapsed();
+    const clock = setInterval(paintElapsed, 1000);
+
+    document.body.append(overlay);
+    if (before.supervised) {
+      setInert(true);
+      bgBtn.focus();
+    } else {
+      toBanner();
+    }
+
+    const finish = () => {
+      remove();
+      toast(`${name} 已重新啟動`);
       ctx.refreshBotChip();
       if (!ctx.disposed) { loadCommands(); loadCache(); loadSystem(); }
     };
 
     const poll = async () => {
-      if (Date.now() - startedAt > RESTART_TIMEOUT_MS && before.supervised) {
-        finish(`${name} 超過 3 分鐘還沒回來，請查看部署平台的 log`, false);
-        return;
+      if (!timedOut && before.supervised && Date.now() - startedAt > RESTART_TIMEOUT_MS) {
+        timedOut = true;
+        toBanner();
+        overlay.classList.add('is-warn');
+        message.textContent = `${name} 超過 3 分鐘還沒回來。`;
+        paintElapsed();
       }
       try {
-        const sys = await api.get('/api/system');
+        const sys = await api.get('/api/system', { bot });
         if (sys.uptimeSec < before.uptimeSec || sys.pid !== before.pid) {
-          const me = await api.get('/api/me');
+          const me = await api.get('/api/me', { bot });
           if (me.ready) {
-            finish(`${name} 已重新啟動`, true);
+            finish();
             return;
           }
-          message.textContent = '已重新啟動，正在連線 Discord…';
+          message.textContent = `${name} 已重新啟動，正在連線 Discord…`;
         }
       } catch (err) {
-        if (err.status === 401) { overlay.remove(); return; } // 登入失效時 app.js 會切到登入畫面
+        if (err.status === 401) { remove(); return; } // 登入失效時 app.js 會切到登入畫面
       }
-      setTimeout(poll, RESTART_POLL_MS);
+      // 逾時後放慢一點，繼續等到 Bot 回來
+      setTimeout(poll, timedOut ? RESTART_POLL_MS * 3 : RESTART_POLL_MS);
     };
     setTimeout(poll, RESTART_POLL_MS * 2);
   }

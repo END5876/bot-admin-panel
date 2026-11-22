@@ -5,7 +5,7 @@
 
 import { fill, h, icon, logo } from './dom.js';
 import { api, setCurrentBot, setUnauthorizedHandler } from './api.js';
-import { avatar, confirmDialog, toast, toastError } from './ui.js';
+import { avatar, confirmDialog, openModal, toast, toastError } from './ui.js';
 import overview from './pages/overview.js';
 import responses from './pages/responses.js';
 import prompts from './pages/prompts.js';
@@ -163,6 +163,60 @@ function showLogin(message = '') {
   root.className = '';
   root.removeAttribute('aria-busy');
   root.replaceChildren(h('main', { class: 'login-wrap' }, form));
+  input.focus();
+}
+
+// 登入過期時，頁面上還有沒存的內容（例如正在改的人格 prompt）：
+// 不切到登入頁（會把頁面整個換掉、內容就沒了），改疊一層登入框，登入後留在原地再按一次儲存
+let reloginModal = null;
+function promptRelogin() {
+  if (reloginModal) return;
+  const input = h('input', {
+    class: 'input', type: 'password', id: 'relogin-password', autocomplete: 'current-password', required: true,
+    placeholder: 'ADMIN_PASSWORD',
+  });
+  const error = h('div', { class: 'login-error', role: 'alert' });
+  const submit = h('button', { type: 'submit', class: 'btn btn-primary', form: 'relogin-form' }, '登入並繼續編輯');
+  const discard = h('button', { type: 'button', class: 'btn' }, '放棄變更並登出');
+  const form = h('form', { class: 'form', id: 'relogin-form', novalidate: true },
+    h('p', { class: 'confirm-text' }, '登入已過期。你剛剛改的內容還在，重新登入後再按一次儲存就好。'),
+    h('div', { class: 'field' }, h('label', { for: 'relogin-password' }, '密碼'), input),
+    error,
+  );
+  let loggedIn = false;
+  const modal = openModal({
+    title: '請重新登入',
+    body: form,
+    footer: [discard, h('span', { class: 'spacer' }), submit],
+    // 只能登入或明確放棄，不能按 Esc 或點背景關掉（關掉後每個請求都會再失敗）
+    beforeClose: () => loggedIn,
+    onClose: () => { reloginModal = null; },
+  });
+  reloginModal = modal;
+  discard.addEventListener('click', () => {
+    loggedIn = true; // 讓 close() 通過
+    modal.close();
+    current?.ctx.setDirty(false);
+    showLogin('登入已過期，請重新登入');
+  });
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!input.value) { error.textContent = '請輸入密碼'; input.focus(); return; }
+    submit.disabled = true;
+    error.textContent = '';
+    try {
+      await api.post('/api/login', { password: input.value });
+      loggedIn = true;
+      modal.close();
+      toast('已重新登入。剛才那次沒有存到，請再按一次儲存。', { type: 'info', timeout: 8000 });
+      refreshBots();
+    } catch (err) {
+      error.textContent = err.message;
+      input.select();
+    } finally {
+      submit.disabled = false;
+    }
+  });
   input.focus();
 }
 
@@ -456,7 +510,11 @@ async function startApp() {
 // ════════════════════════════════════════════════════════
 //  啟動
 // ════════════════════════════════════════════════════════
-setUnauthorizedHandler(() => { if (shell) showLogin('登入已過期，請重新登入'); });
+setUnauthorizedHandler(() => {
+  if (!shell) return;
+  if (current?.ctx.isDirty()) promptRelogin();
+  else showLogin('登入已過期，請重新登入');
+});
 window.addEventListener('hashchange', route);
 window.addEventListener('beforeunload', (e) => {
   if (current?.ctx.isDirty()) { e.preventDefault(); e.returnValue = ''; }

@@ -618,6 +618,17 @@ dialog.modal::backdrop { background: var(--scrim); }
 .hero-name { font-size: 18px; font-weight: 700; }
 .hero-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--ink-faint); font-size: 13px; margin-top: 2px; }
 .hero-aside { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+/* 總覽狀態帶：全站唯一大膽的元素。正常＝一行結論；異常＝淡紅底列出要注意的事 */
+.status-band.is-bad { background: var(--bad-tint); border-color: color-mix(in srgb, var(--bad) 30%, var(--line)); }
+.status-band.is-unknown .hero-name { color: var(--ink-faint); }
+.band-issues { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 2px; }
+.band-link {
+  padding: 2px 0; border: 0; background: none; font: inherit; font-size: 13.5px; color: var(--bad-ink);
+  text-align: left; cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+}
+.band-link:hover { text-decoration-color: currentColor; }
+.ov-services:focus, .ov-modules:focus, .ov-stats:focus { outline: none; }
 .module-row .row-title { font-weight: 500; }
 .status-ic { width: 18px; height: 18px; flex: none; display: grid; place-items: center; border-radius: 50%; }
 .status-ic svg.ic { width: 12px; height: 12px; stroke-width: 2.6; }
@@ -835,6 +846,21 @@ details.disclosure[open] > summary svg.ic { transform: rotate(90deg); }
   background: var(--scrim);
 }
 .restart-box { display: grid; justify-items: center; gap: 12px; padding: 28px 32px; text-align: center; max-width: min(420px, calc(100vw - 32px)); }
+/* 在背景等待：頁首置中的提示條，不擋操作 */
+.restart-banner {
+  position: fixed; z-index: 150;
+  top: calc(10px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%);
+  width: max-content; max-width: calc(100vw - 24px);
+}
+.restart-banner .restart-box {
+  display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap;
+  padding: 10px 16px; border-radius: 12px;
+  background: var(--card); color: var(--ink); border: 1px solid var(--line);
+  box-shadow: var(--shadow-lg); font-size: 13.5px; text-align: left;
+}
+.restart-banner .restart-msg { font-weight: 600; }
+.restart-banner.is-warn .restart-box { background: var(--warn-tint); color: var(--warn-ink); border-color: transparent; }
+.restart-banner.is-warn .spinner { display: none; }
 
 /* ── 操作紀錄 ─────────────────────────────────────────── */
 .audit-time { white-space: nowrap; color: var(--ink-soft); font-variant-numeric: tabular-nums; }

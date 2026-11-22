@@ -4,6 +4,7 @@ import { h, icon, setVar } from '../dom.js';
 import { api } from '../api.js';
 import { fmtCompact, fmtDateTime, fmtDuration, fmtInt, fmtPercent } from '../format.js';
 import { avatar, card, emptyState, errorState, freshness, loadingState, statusBadge, toastError } from '../ui.js';
+import { LOGS_LEVEL_KEY } from './logs.js';
 
 const CHECK = {
   ok: ['good', '正常'],
@@ -42,6 +43,33 @@ function checkRow(name, check, detail, stale) {
     h('div', { class: 'row-main' }, h('div', { class: 'row-title' }, name), detail ? h('div', { class: 'row-sub' }, detail) : null),
     statusBadge(kind, text),
   );
+}
+
+// 異常排前面：離線 → 重新連線中 → 正常 → 未設定
+const CHECK_ORDER = { down: 0, recovering: 1, ok: 2, disabled: 3 };
+const MODULE_ORDER = { warn: 0, ok: 1, off: 2 };
+
+/** 總覽狀態帶要列出的「要注意的事」：未設定（disabled）、未啟用的模組都不算 */
+function collectIssues(d) {
+  const { checks } = d.health;
+  const issues = [];
+  if (checks.discord.status !== 'ok') {
+    issues.push({ text: `Discord ${(CHECK[checks.discord.status] ?? CHECK.down)[1]}`, target: 'services' });
+  }
+  for (const [key, label] of [['oww', '喚醒詞服務（OWW）'], ['potProvider', 'YouTube PO Token 服務']]) {
+    const c = checks[key];
+    if (!c || c.status === 'ok' || c.status === 'disabled') continue;
+    const detail = probeDetail(c);
+    issues.push({ text: `${label}${(CHECK[c.status] ?? CHECK.down)[1]}${detail ? `：${detail}` : ''}`, target: 'services' });
+  }
+  for (const m of d.modules) {
+    if (m.status === 'warn') issues.push({ text: `${m.name}降級運作${m.detail ? `：${m.detail}` : ''}`, target: 'modules' });
+  }
+  const budget = d.usage.limits.dailyBudget;
+  if (budget > 0 && d.usage.billable / budget >= 0.8) {
+    issues.push({ text: `今日 AI 用量已達 ${fmtPercent(d.usage.billable / budget)}`, target: 'stats' });
+  }
+  return issues;
 }
 
 function probeDetail(check) {
@@ -90,24 +118,44 @@ export default function mountOverview(root, ctx) {
     const discord = checks.discord;
     const [dKind, dText] = stale ? UNKNOWN : CHECK[discord.status] ?? CHECK.down;
 
-    const hero = h('section', { class: 'card hero' },
+    // 狀態帶：一句話結論。正常時一行；有異常時列出要注意的事，每項可以點到對應的卡片
+    const name = d.bot?.name ?? ctx.botName();
+    const issues = stale ? [] : collectIssues(d);
+    const jump = (target) => {
+      const el = root.querySelector(`.ov-${target}`);
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      el.tabIndex = -1; // 讓鍵盤與報讀器的焦點跟著移過去
+      el.focus({ preventScroll: true });
+    };
+    const headline = stale ? `${name} 狀態未知`
+      : issues.length ? `有 ${issues.length} 件事要注意`
+        : `${name} 運作正常・已運行 ${fmtDuration(d.health.uptimeSec)}`;
+    const shortcuts = issues.length ? [
+      ctx.has('logs') ? h('a', {
+        class: 'btn btn-sm', href: `#/${ctx.bot}/logs`,
+        onclick: () => { try { sessionStorage.setItem(LOGS_LEVEL_KEY, '3'); } catch {} },
+      }, icon('terminal', 'ic-sm'), '看錯誤日誌') : null,
+      ctx.has('maintenance') ? h('a', { class: 'btn btn-sm', href: `#/${ctx.bot}/maintenance` }, icon('power', 'ic-sm'), `重新啟動 ${name}…`) : null,
+    ] : null;
+    const hero = h('section', { class: ['card', 'hero', 'status-band', stale ? 'is-unknown' : issues.length ? 'is-bad' : 'is-good'], role: 'status' },
       avatar({ url: d.bot?.avatarUrl, name: d.bot?.name, size: 'lg' }),
       h('div', { class: 'row-main' },
-        h('div', { class: 'hero-name' }, d.bot?.name ?? 'Bot'),
-        h('div', { class: 'hero-meta' },
-          d.bot ? h('span', { class: 'mono' }, d.bot.tag) : h('span', null, '尚未登入 Discord'),
-          statusBadge(dKind, `Discord ${dText}`),
-        ),
+        h('div', { class: 'hero-name' }, headline),
+        issues.length
+          ? h('ul', { class: 'band-issues' }, issues.map((i) => h('li', null,
+            h('button', { type: 'button', class: 'band-link', onclick: () => jump(i.target) }, i.text))))
+          : h('div', { class: 'hero-meta' },
+            d.bot ? h('span', { class: 'mono' }, d.bot.tag) : h('span', null, '尚未登入 Discord'),
+            statusBadge(dKind, `Discord ${dText}`),
+          ),
       ),
-      h('div', { class: 'hero-aside' },
-        statusBadge('neutral', `Node ${d.runtime.node}`),
-        statusBadge('neutral', `LOG_LEVEL=${d.runtime.logLevel}`),
-      ),
+      shortcuts ? h('div', { class: 'hero-aside' }, shortcuts) : null,
     );
 
     const { usage } = d;
     const budget = usage.limits.dailyBudget;
-    const stats = h('div', { class: 'stats' },
+    const stats = h('div', { class: 'stats ov-stats' },
       stat('運行時間', fmtDuration(d.health.uptimeSec)),
       stat('記憶體', `${fmtInt(d.health.memoryMB)} MB`, '程序常駐記憶體（RSS）'),
       stat('Discord 延遲', discord.ping >= 0 ? `${fmtInt(discord.ping)} ms` : '—', `WebSocket：${discord.wsStatus}`),
@@ -117,14 +165,16 @@ export default function mountOverview(root, ctx) {
         budget > 0 ? budgetMeter(usage.billable, budget) : null),
     );
 
+    const serviceRows = [
+      [discord, checkRow('Discord Gateway', discord, `狀態 ${discord.wsStatus}・${fmtInt(discord.guilds)} 個伺服器`, stale)],
+      [checks.oww, checkRow('喚醒詞服務（OWW）', checks.oww, probeDetail(checks.oww), stale)],
+      [checks.potProvider, checkRow('YouTube PO Token 服務', checks.potProvider, probeDetail(checks.potProvider), stale)],
+    ].sort((a, b) => (CHECK_ORDER[a[0].status] ?? 0) - (CHECK_ORDER[b[0].status] ?? 0)).map(([, row]) => row);
     const services = card({
       title: '外部服務',
       iconName: 'server',
-      body: h('div', { class: 'rows' },
-        checkRow('Discord Gateway', discord, `狀態 ${discord.wsStatus}・${fmtInt(discord.guilds)} 個伺服器`, stale),
-        checkRow('喚醒詞服務（OWW）', checks.oww, probeDetail(checks.oww), stale),
-        checkRow('YouTube PO Token 服務', checks.potProvider, probeDetail(checks.potProvider), stale),
-      ),
+      className: 'ov-services',
+      body: h('div', { class: 'rows' }, serviceRows),
       tight: true,
       note: 'Discord 斷線超過 60 秒時，健康檢查會回報不健康；其他服務離線時 Bot 會降級運作。',
     });
@@ -155,8 +205,9 @@ export default function mountOverview(root, ctx) {
       title: '模組狀態',
       sub: '開機時回報',
       iconName: 'sliders',
+      className: 'ov-modules',
       tight: true,
-      body: h('div', { class: 'rows' }, d.modules.map((m) => {
+      body: h('div', { class: 'rows' }, [...d.modules].sort((a, b) => (MODULE_ORDER[a.status] ?? 0) - (MODULE_ORDER[b.status] ?? 0)).map((m) => {
         const [cls, ic, label] = MODULE[m.status] ?? MODULE.off;
         return h('div', { class: 'row module-row' },
           h('span', { class: ['status-ic', cls], title: label, 'aria-label': label, role: 'img' }, icon(ic)),

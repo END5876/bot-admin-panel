@@ -232,7 +232,9 @@ export function userCell(user) {
 /** kind：good / warn / bad / neutral；顏色一定搭配文字 */
 export function statusBadge(kind, text) {
   const cls = { good: 'badge-good', warn: 'badge-warn', bad: 'badge-bad', accent: 'badge-accent' }[kind];
-  return h('span', { class: ['badge', cls] }, h('span', { class: ['dot', kind !== 'neutral' && kind !== 'accent' && `dot-${kind}`] }), text);
+  // 灰點在這個面板代表「沒連上」，中性與強調狀態不畫圓點，免得誤會
+  const dot = kind === 'neutral' || kind === 'accent' ? null : h('span', { class: ['dot', `dot-${kind}`] });
+  return h('span', { class: ['badge', cls] }, dot, text);
 }
 
 // ── 狀態畫面 ───────────────────────────────────────────
