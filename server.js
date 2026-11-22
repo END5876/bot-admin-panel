@@ -33,7 +33,7 @@ const path = require('path');
 const logger = require('./lib/logger');
 const audit = require('./lib/audit');
 const { createAuth, describeSource } = require('./lib/auth');
-const { DATA_DIR, parseBots } = require('./lib/config');
+const { DATA_DIR, parseBots, parseLinks } = require('./lib/config');
 const { callAgent, fetchInfo, AgentError } = require('./lib/agentClient');
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -224,7 +224,7 @@ async function proxyToBot(req, res, url, bot, rest, source) {
   send(res, result.status, { ...headers, 'Content-Length': result.body.length }, result.body);
 }
 
-async function handleApi(req, res, url, { auth, bots }) {
+async function handleApi(req, res, url, { auth, bots, links = [] }) {
   const mutating = req.method !== 'GET' && req.method !== 'HEAD';
   if (mutating && req.headers[CSRF_HEADER] !== '1') {
     throw new HttpError(403, '請從管理面板網頁操作');
@@ -260,7 +260,7 @@ async function handleApi(req, res, url, { auth, bots }) {
 
   if (url.pathname === '/api/bots') {
     if (req.method !== 'GET') throw new HttpError(405, '不支援的方法');
-    sendJson(res, 200, { bots: await Promise.all(bots.map(fetchInfo)), panelVersion: PANEL_VERSION });
+    sendJson(res, 200, { bots: await Promise.all(bots.map(fetchInfo)), panelVersion: PANEL_VERSION, links });
     return;
   }
 
@@ -330,7 +330,8 @@ function startServer({ env = process.env } = {}) {
   const sessionHours = Math.max(1, Number.parseFloat(env.ADMIN_SESSION_HOURS || '168') || 168);
   const auth = createAuth({ password, secretFile: SECRET_FILE, sessionHours, revokedFile: REVOKED_FILE });
 
-  const server = http.createServer(createHandler({ auth, bots }));
+  const links = parseLinks(env.PANEL_LINKS);
+  const server = http.createServer(createHandler({ auth, bots, links }));
   server.requestTimeout = 90 * 1000;
   server.listen(port, host, () => {
     const shown = host === '0.0.0.0' || host === '::' ? 'localhost' : host;

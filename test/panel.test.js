@@ -24,7 +24,7 @@ Object.assign(process.env, {
 
 const { startServer } = require('../server');
 const { _ipv6Prefix64, _clientKey, createAuth } = require('../lib/auth');
-const { parseBots } = require('../lib/config');
+const { parseBots, parseLinks } = require('../lib/config');
 const audit = require('../lib/audit');
 
 const ENV = {
@@ -284,4 +284,12 @@ test('panel：登入失敗在操作紀錄裡另有上限，擠不掉管理操作
 test('panel：沒有密碼或太短時拒絕啟動', () => {
   assert.throws(() => startServer({ env: { ...ENV, ADMIN_PASSWORD: '' } }), /ADMIN_PASSWORD/);
   assert.throws(() => startServer({ env: { ...ENV, ADMIN_PASSWORD: 'short' } }), /ADMIN_PASSWORD/);
+});
+
+test('PANEL_LINKS：名稱=網址，只收 http／https，格式不對的略過', () => {
+  assert.deepEqual(parseLinks(''), []);
+  assert.deepEqual(
+    parseLinks('裊器音樂=https://music.example.com, 壞的=ftp://x, 沒有等號, =https://no-label.example.com, 分帳=https://sb.example.com/a?b=1'),
+    [{ label: '裊器音樂', url: 'https://music.example.com/' }, { label: '分帳', url: 'https://sb.example.com/a?b=1' }],
+  );
 });

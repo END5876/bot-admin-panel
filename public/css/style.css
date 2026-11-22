@@ -185,6 +185,11 @@ svg.logo .logo-eye { fill: var(--card); }
 /* Bot 很多時清單自己捲動（不縮小：側欄放不下時整條側欄捲動，底部的主題／登出固定） */
 .bot-switch { display: grid; gap: 6px; padding-bottom: 6px; flex-shrink: 0; max-height: min(34vh, 320px); overflow-y: auto; }
 .bot-switch-note { padding: 0 10px 6px; font-size: 12px; color: var(--ink-faint); }
+/* 側欄底部「其他工具」（PANEL_LINKS） */
+.tool-links { display: grid; gap: 2px; }
+.tool-links .nav-label { padding: 0 10px 2px; }
+.tool-links a { display: flex; align-items: center; gap: 8px; padding: 5px 10px; border-radius: var(--radius-sm); color: var(--ink-soft); font-size: 13px; text-decoration: none; }
+.tool-links a:hover { background: var(--surface-hover); color: var(--ink); }
 .bot-switch .bot-chip {
   color: inherit; text-decoration: none;
   border: 1px solid transparent;
@@ -272,6 +277,7 @@ svg.logo .logo-eye { fill: var(--card); }
   .app:not(.nav-open) .nav-label { height: 1px; margin: 8px 10px; padding: 0; overflow: hidden; font-size: 0; background: var(--line); }
   .app:not(.nav-open) .nav a { justify-content: center; padding: 11px 0; }
   .app:not(.nav-open) .nav a svg.ic { width: 20px; height: 20px; }
+  .app:not(.nav-open) .tool-links a { justify-content: center; padding: 8px 0; }
   .app:not(.nav-open) :is(.nav-text, .btn-text) {
     position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
     overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;

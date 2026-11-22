@@ -66,6 +66,7 @@ let bots = [];         // GET /api/bots：[{ id, online, features, ready, ping, 
 let panelVersion = null;
 let outdated = false;
 let currentBot = null; // 代號
+let panelLinks = [];   // /api/bots 的 links（PANEL_LINKS）：側欄底部「其他工具」
 
 // ════════════════════════════════════════════════════════
 //  Bot 與功能
@@ -303,6 +304,10 @@ function buildShell() {
       switchNote,
       navEl,
       h('div', { class: 'sidebar-foot' },
+        panelLinks.length ? h('nav', { class: 'tool-links', 'aria-label': '其他工具' },
+          h('div', { class: 'nav-label' }, '其他工具'),
+          panelLinks.map((l) => h('a', { href: l.url, target: '_blank', rel: 'noopener noreferrer', title: l.label },
+            icon('external', 'ic-sm'), h('span', { class: 'nav-text' }, l.label)))) : null,
         h('div', { class: 'sidebar-actions' },
           themeButton(),
           h('button', { type: 'button', class: 'btn btn-sm', title: '登出', onclick: logout }, icon('logout', 'ic-sm'), h('span', { class: 'btn-text' }, '登出')),
@@ -390,6 +395,7 @@ function paintBots() {
 async function loadBots() {
   const res = await api.get('/api/bots');
   bots = res.bots;
+  panelLinks = Array.isArray(res.links) ? res.links : [];
   botsFails = 0;
   botsStale = false;
   if (!res.panelVersion) return;
