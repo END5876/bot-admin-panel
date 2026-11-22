@@ -77,7 +77,7 @@ export default function mountMaintenance(root, ctx) {
           h('tbody', null, rows),
         )),
       ],
-      note: 'Bot 開機時會自動同步（內容沒變就略過）。只有 Discord 上看到的指令和這裡對不起來時，才需要強制重新同步。',
+      note: 'Bot 開機時會自動同步，平常不用按。',
     }));
   }
 
@@ -144,7 +144,7 @@ export default function mountMaintenance(root, ctx) {
         ) : null,
       ),
       foot: [h('span', { class: 'spacer' }), clearBtn],
-      note: '根目錄的音訊檔超過上限時，Bot 會從最舊的開始自動刪除，包含直接放在 data/music 根目錄的歌。要一直保留的歌請放在子資料夾。',
+      note: '超過上限時會從最舊的開始刪，要保留的歌請放在子資料夾。',
     }));
   }
 
@@ -194,12 +194,13 @@ export default function mountMaintenance(root, ctx) {
       title: '設定備份',
       iconName: 'download',
       body: h('div', { class: 'form' },
-        h('p', { class: 'hint' }, '把這隻 Bot 在 data/ 裡的設定打包成一個 JSON 檔（依 Bot 而定，例如自訂回應、AI 人格、插話機率、通知頻道、自動加入、TTS 與 Bot 狀態設定）。不包含任何金鑰與 Cookie。'),
+        h('p', { class: 'hint' }, '不包含任何金鑰與 Cookie。'),
         h('label', { class: 'check', for: 'backup-stats' }, statsBox, h('span', null, '一併包含統計資料（AI 用量、播放次數、通知紀錄）')),
         fileInput,
       ),
       foot: [restoreBtn, h('span', { class: 'spacer' }), downloadBtn],
-      note: '還原：上傳之前下載的備份檔，先預覽會換掉哪些檔案，確認後 Bot 會重新啟動並套用。備份裡沒有的檔案維持原樣；還原前的檔案會保留在 data/backups/restore-<時間>/（最近 5 份）。',
+      note: '還原會先預覽，確認後 Bot 會重新啟動。',
+      more: '備份包含這隻 Bot 在 data/ 裡的設定（例如自訂回應、AI 人格、插話機率、通知頻道、自動加入、TTS 與 Bot 狀態設定）。還原時，備份裡沒有的檔案維持原樣；還原前的檔案會保留在 data/backups/restore-<時間>/（最近 5 份）。',
     }));
   }
 

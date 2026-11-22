@@ -345,6 +345,11 @@ svg.logo .logo-eye { fill: var(--card); }
   display: flex; align-items: flex-start; gap: 6px;
 }
 .card-note svg.ic { margin-top: 2px; }
+/* 卡片的「詳細說明」：預設折起，需要時才展開 */
+.card-more { padding: 8px 18px 10px; border-top: 1px solid var(--line); color: var(--ink-faint); font-size: 12.5px; }
+.card-more summary { cursor: pointer; width: max-content; }
+.card-more summary:hover { color: var(--ink-soft); }
+.card-more p { margin: 6px 0 0; line-height: 1.6; }
 
 .grid { display: grid; gap: 18px; }
 .grid-2 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); align-items: start; }
@@ -1031,6 +1036,7 @@ svg.ic.flip { transform: rotate(180deg); }
   .card-foot { padding: 12px 14px; }
   .card-foot .btn-primary, .card-foot .btn-danger-solid { flex: 1 1 auto; }
   .card-note { padding: 10px 14px; }
+  .card-more { padding: 8px 14px 10px; }
   .row { padding: 10px 14px; }
   .guild-block { padding: 12px 14px; }
   .list-label { padding-left: 14px; padding-right: 14px; }

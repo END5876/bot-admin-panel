@@ -147,7 +147,8 @@ export default function mountVoice(root, ctx) {
         h('div', { class: 'add-inline' }, sel, applyBtn),
         aj.channelName ? h('div', { class: 'hint' }, `目前：${aj.guildName} › ${aj.channelName}`) : null,
       ),
-      note: 'Bot 會常駐在這個頻道，每 10 秒檢查一次，斷線後自動重新加入。關閉自動加入不會讓 Bot 立即離開頻道。',
+      note: 'Bot 斷線後會自動重新加入這個頻道。',
+      more: '每 10 秒檢查一次。關閉自動加入不會讓 Bot 立即離開頻道。',
     }));
   }
 
@@ -201,7 +202,7 @@ export default function mountVoice(root, ctx) {
         ctx.has('voice:join') ? joinControls(g) : null,
         idleSwitch(g, true),
       ))),
-      note: '開關是「閒置自動停止」：頻道內 30 分鐘沒有其他人，或有人但 60 分鐘沒人說話時，自動停止播放（Bot 不會離開頻道）。',
+      note: '閒置自動停止：沒人 30 分鐘或沒人說話 60 分鐘就停止播放。',
     }) : null);
   }
 

@@ -173,7 +173,7 @@ export default function mountPrompts(root, ctx) {
       });
       body.replaceChildren(
         h('div', { class: 'version-layout' }, h('div', { class: 'version-list' }, items), preview),
-        h('div', { class: 'toolbar version-actions' }, h('span', { class: 'hint' }, '時間是這個版本當初儲存的時間。'), h('span', { class: 'spacer' }), loadBtn),
+        h('div', { class: 'toolbar version-actions' }, h('span', { class: 'spacer' }), loadBtn),
       );
       items[0].click();
     } catch (err) {
@@ -338,7 +338,7 @@ export default function mountPrompts(root, ctx) {
         ),
         single() ? null : h('div', { class: 'form-row' },
           h('div', { class: 'field' }, h('label', { for: 'pm-single' }, '設成群組人格'), singleScope,
-            h('div', { class: 'hint' }, '單一人格模式（/ai scope）能不能選這個人格。戀人類人格建議只限管理員。')),
+            h('div', { class: 'hint' }, '單一人格模式能不能選這個人格。')),
         ),
         h('div', { class: 'field' },
           h('label', { for: 'pm-prompt' }, 'Prompt 本文'),

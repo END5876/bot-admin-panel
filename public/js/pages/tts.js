@@ -47,7 +47,7 @@ export default function mountTts(root, ctx) {
         h('dt', null, 'edge-tts'),
         h('dd', null, statusBadge(edge.available ? 'good' : 'neutral', edge.available ? '可用（SoVITS 離線時的備援）' : '未安裝')),
       ),
-      note: 'SoVITS 伺服器一次只能載入一組權重：在任何一個伺服器切換模型，其他伺服器也會用到新的權重（與 /tts model 相同）。',
+      note: '切換 SoVITS 模型會影響所有伺服器。',
     });
   }
 
@@ -148,7 +148,7 @@ export default function mountTts(root, ctx) {
       iconName: 'server',
       tight: true,
       body: blocks.length ? blocks : emptyState('Bot 還沒加入任何伺服器。'),
-      note: '「AI 回覆自動朗讀」：Bot 在語音頻道時，把 AI 的文字回覆也念出來（等同 /ai tts）。試聽會照正常的 TTS 排隊，正在放的音樂會暫停。',
+      more: '「AI 回覆自動朗讀」：Bot 在語音頻道時，把 AI 的文字回覆也念出來（等同 /ai tts）。試聽會照正常的 TTS 排隊，正在放的音樂會暫停。',
     });
   }
 

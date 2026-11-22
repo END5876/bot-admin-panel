@@ -102,7 +102,7 @@ export default function mountNotify(root, ctx) {
             : h('div', { class: 'hint' }, '沒有其他可以新增的文字頻道。'),
         ),
       ],
-      note: '每 30 分鐘檢查一次，發現新的限免遊戲就推播到這些頻道（同一款遊戲只通知一次）。',
+      more: '每 30 分鐘檢查一次，發現新的限免遊戲就推播到這些頻道（同一款遊戲只通知一次）。',
     });
   }
 
@@ -226,7 +226,7 @@ export default function mountNotify(root, ctx) {
           hours,
         ),
       ],
-      note: '整點時，只在「Bot 正在語音頻道裡」且已開啟的伺服器播放；正在放音樂會先暫停，報完再繼續。',
+      note: 'Bot 在語音頻道裡才會報時，音樂會暫停、報完繼續。',
     });
   }
 

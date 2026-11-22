@@ -178,7 +178,7 @@ export default function mountOverview(root, ctx) {
       className: 'ov-services',
       body: h('div', { class: 'rows' }, serviceRows),
       tight: true,
-      note: 'Discord 斷線超過 60 秒時，健康檢查會回報不健康；其他服務離線時 Bot 會降級運作。',
+      more: 'Discord 斷線超過 60 秒時，健康檢查會回報不健康；其他服務離線時 Bot 會降級運作。',
     });
 
     const voice = card({
@@ -253,7 +253,7 @@ export default function mountOverview(root, ctx) {
         ),
       ),
       tight: true,
-      note: '程序已自動重新啟動。這裡只保留最近一次（data/lastCrash.json）。',
+      note: '程序已自動重新啟動，這裡只保留最近一次。',
     }) : null;
 
     // 原生 replaceChildren 會把 null 變成文字「null」，沒有崩潰紀錄時不要傳進去

@@ -61,7 +61,8 @@ export default function mountAiSettings(root, ctx) {
           ? h('span', { class: 'mono' }, `data/prompts/modes/${p.key}.md`)
           : '內建的通用人格（找不到人格檔）'),
       ),
-      note: '這隻 Bot 所有伺服器、所有頻道都用同一個人格群聊。人格由環境變數 AI_PERSONA 指定，內容在 Bot 資料夾的 data/prompts/ 裡修改（存檔後自動生效）。',
+      note: '所有伺服器、頻道都用同一個人格。',
+      more: '人格由環境變數 AI_PERSONA 指定，內容在 Bot 資料夾的 data/prompts/ 裡修改（存檔後自動生效）。',
     });
   }
 
@@ -105,7 +106,8 @@ export default function mountAiSettings(root, ctx) {
         h('div', { class: 'field' }, h('span', { class: 'field-label' }, '搜尋成員'), picker),
         clearBtn,
       ),
-      note: 'AI 只會參考同一個頻道最近 10 分鐘內的對話；清除後，在那之前的訊息都不會再被當成上下文（Bot 重新啟動後仍然有效）。只影響多人格的對話；單一人格頻道請在 Discord 用 /ai clear。',
+      note: '只影響多人格的對話；單一人格頻道請在 Discord 用 /ai clear。',
+      more: 'AI 只會參考同一個頻道最近 10 分鐘內的對話；清除後，之前的訊息不會再被當成上下文（Bot 重新啟動後仍然有效）。',
     });
   }
 
@@ -167,7 +169,7 @@ export default function mountAiSettings(root, ctx) {
         h('div', { class: 'field' }, h('span', { class: 'field-label' }, '單位'), unitSel),
         saveBtn,
       ),
-      h('div', { class: 'hint' }, sourceText, ` 可設 ${fmtDuration(d.min)}到 28 天，儲存後立即生效。`, resetBtn ? ' ' : null, resetBtn),
+      h('div', { class: 'hint' }, sourceText, ` 可設 ${fmtDuration(d.min)}到 28 天。`, resetBtn ? ' ' : null, resetBtn),
     );
   }
 
@@ -224,7 +226,8 @@ export default function mountAiSettings(root, ctx) {
           addBtn,
         )),
       ],
-      note: '名單上的人 @Bot 或用 /ai ask 認真辱罵 Bot 時，AI 會依辱罵的嚴重程度（1～5 級）禁言他，並回嗆一句：第 1 級禁言最長時長的 1/5，第 5 級禁言滿最長時長。開玩笑的吐槽不算；語音對話不會觸發；權限比 Bot 高的人（例如管理員）禁言不了。也可以用環境變數 AI_TIMEOUT_USERS 指定，那些人只能改環境變數移除。',
+      note: '名單上的人認真辱罵 Bot 時，AI 會禁言他並回嗆一句。',
+      more: '依辱罵的嚴重程度（1～5 級）禁言：第 1 級禁言最長時長的 1/5，第 5 級禁言滿最長時長。開玩笑的吐槽不算；語音對話不會觸發；權限比 Bot 高的人（例如管理員）禁言不了。也可以用環境變數 AI_TIMEOUT_USERS 指定，那些人只能改環境變數移除。',
     });
   }
 
@@ -304,7 +307,8 @@ export default function mountAiSettings(root, ctx) {
           ? data.searchGuilds.map((g) => g.name ?? g.id).join('、')
           : '停用'),
       ),
-      note: '這些設定來自環境變數（GEMINI_MODEL、AI_* 、GEMINI_SEARCH_GUILD_IDS），修改後需要重新啟動 Bot。擁有者不受每人限制。',
+      note: '來自環境變數，改了要重新啟動 Bot。',
+      more: '相關環境變數：GEMINI_MODEL、AI_*、GEMINI_SEARCH_GUILD_IDS。管理員不受每人每日上限限制。',
     });
   }
 
@@ -322,7 +326,8 @@ export default function mountAiSettings(root, ctx) {
           e.overridden ? h('span', { class: 'badge badge-warn' }, '已被下方指定蓋過') : null,
         )))
         : h('div', { class: 'hint' }, '未設定'),
-      note: '由環境變數 AI_USER_MODE_OVERRIDES（使用者ID:模式代號,…）指定，修改後需重啟 Bot。下方「使用者人格模式」的設定優先於這裡。',
+      note: '來自環境變數，改了要重新啟動 Bot。',
+      more: '環境變數 AI_USER_MODE_OVERRIDES，格式「使用者ID:模式代號,…」。下方「使用者人格模式」的設定優先於這裡。',
     });
   }
 
@@ -387,7 +392,7 @@ export default function mountAiSettings(root, ctx) {
           : emptyState('還沒有指定任何人的人格模式。', 'user'),
         h('div', { class: 'guild-block' }, addUserModeForm()),
       ],
-      note: `優先順序：這裡的指定 → 環境變數的固定人格 → 預設模式「${modeLabel(data.defaultMode)}」。也可以在 Discord 用 /ai mode 設定。`,
+      more: `優先順序：這裡的指定 → 環境變數的固定人格 → 預設模式「${modeLabel(data.defaultMode)}」。也可以在 Discord 用 /ai mode 設定。`,
     });
   }
 

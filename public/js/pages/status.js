@@ -95,7 +95,7 @@ export default function mountStatus(root, ctx) {
         h('div', { class: 'field' }, h('span', { class: 'field-label' }, '預覽'), preview),
       ),
       foot: [h('span', { class: 'spacer' }), saveBtn],
-      note: '套用後立即生效，Bot 重新啟動後也會沿用。「隱身」時 Bot 看起來是離線，但功能照常運作。',
+      note: '「隱身」時 Bot 看起來是離線，但功能照常。',
     }));
     paint();
   }
@@ -165,7 +165,7 @@ export default function mountStatus(root, ctx) {
           h('div', { class: 'toolbar' }, counter, h('span', { class: 'spacer' }), sendBtn)),
         history,
       ),
-      note: '等同 /say。@everyone、@here 與身分組提及不會生效（Bot 只允許提及使用者）。',
+      note: '@everyone、@here 和身分組提及不會生效。',
     }));
     paint();
     paintHistory();

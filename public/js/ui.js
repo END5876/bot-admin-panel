@@ -301,7 +301,8 @@ export function errorState(err, retry) {
   );
 }
 
-export function card({ title, sub, actions, body, foot, note, iconName, tight = false, className }) {
+// note：卡片底部一句話的提醒（只寫會做錯事或有後果的事）；more：細節（環境變數、規則），收在預設折起的「詳細說明」
+export function card({ title, sub, actions, body, foot, note, more, iconName, tight = false, className }) {
   return h('section', { class: ['card', className] },
     title ? h('div', { class: 'card-head' },
       h('h2', null, iconName ? icon(iconName) : null, title),
@@ -311,6 +312,7 @@ export function card({ title, sub, actions, body, foot, note, iconName, tight = 
     body !== undefined ? h('div', { class: ['card-body', tight && 'tight'] }, body) : null,
     foot ? h('div', { class: 'card-foot' }, foot) : null,
     note ? h('div', { class: 'card-note' }, icon('info', 'ic-sm'), h('span', null, note)) : null,
+    more ? h('details', { class: 'card-more' }, h('summary', null, '詳細說明'), h('p', null, more)) : null,
   );
 }
 
