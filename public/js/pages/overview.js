@@ -164,6 +164,8 @@ export default function mountOverview(root, ctx) {
         budget > 0 ? `全體每日上限 ${fmtCompact(budget)}（已用 ${fmtPercent(usage.billable / budget)}）` : `${fmtInt(usage.total.calls)} 次呼叫`,
         budget > 0 ? budgetMeter(usage.billable, budget) : null),
     );
+    // 用量格字最多：寬度夠排 3 欄以下時跨 2 欄，不會被擠成落單的窄格
+    stats.lastElementChild.classList.add('stat-wide');
 
     const serviceRows = [
       [discord, checkRow('Discord Gateway', discord, `狀態 ${discord.wsStatus}・${fmtInt(discord.guilds)} 個伺服器`, stale)],
@@ -258,7 +260,8 @@ export default function mountOverview(root, ctx) {
     root.replaceChildren(...[
       fresh.banner,
       hero,
-      stats,
+      // 摘要格依「內容」寬度決定欄數（外層是 container），不受側欄寬窄影響
+      h('div', { class: 'ov-stats-wrap' }, stats),
       crash,
       h('div', { class: 'grid grid-2' }, services, voice),
       h('div', { class: 'grid grid-2' }, modules, guilds),

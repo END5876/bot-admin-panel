@@ -15,8 +15,9 @@ export default function mountMaintenance(root, ctx) {
   const commandsSlot = h('div', null, loadingState());
   const cacheSlot = h('div', null, loadingState());
   const backupSlot = h('div');
-  const restartSlot = h('div', null, loadingState());
-  root.append(commandsSlot, h('div', { class: 'grid grid-2' }, cacheSlot, h('div', { class: 'page' }, backupSlot, restartSlot)));
+  const restartSlot = h('div', { class: 'maint-restart' }, loadingState());
+  // 手機上打開維護頁多半是要重啟：CSS 在 ≤640px 把這幾層攤平，重新啟動卡排第一（見 style.css 的 .maint-grid）
+  root.append(commandsSlot, h('div', { class: 'grid grid-2 maint-grid' }, cacheSlot, h('div', { class: 'page' }, backupSlot, restartSlot)));
 
   // ── Slash 指令 ───────────────────────────────────────────
   async function loadCommands() {

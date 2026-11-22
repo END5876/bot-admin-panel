@@ -54,11 +54,11 @@ const NAV = [
   },
 ];
 const PAGES = new Map(NAV.flatMap((g) => g.items).map((p) => [p.id, p]));
-// 手機底部分頁列：最常用的四頁，其餘從「更多」打開完整選單
-const TABS = [['overview', '總覽'], ['voice', '語音'], ['responses', '回應'], ['prompts', '人格']];
+// 手機底部分頁列：在手機上打開面板多半是緊急處理（看狀態、看日誌、重啟），其餘從「更多」打開完整選單
+const TABS = [['overview', '總覽'], ['logs', '日誌'], ['maintenance', '維護']];
 
 const root = document.getElementById('app');
-let shell = null;      // { app, nav, tabbar, moreBtn, title, sub, actions, content, switcher, topBot, updateBar }
+let shell = null;      // { app, nav, tabbar, moreBtn, title, sub, actions, content, switcher, switchNote, topBot, updateBar }
 let current = null;    // { key, id, bot, ctx }
 let suppressHash = false;
 let bots = [];         // GET /api/bots：[{ id, online, features, ready, ping, bot, error }]
@@ -112,7 +112,8 @@ function themeButton() {
   const btn = h('button', { type: 'button', class: 'btn btn-sm' });
   const paint = () => {
     const dark = currentTheme() === 'dark';
-    btn.replaceChildren(icon(dark ? 'sun' : 'moon', 'ic-sm'), dark ? '淺色' : '深色');
+    btn.replaceChildren(icon(dark ? 'sun' : 'moon', 'ic-sm'), h('span', { class: 'btn-text' }, dark ? '淺色' : '深色'));
+    btn.title = dark ? '切換成淺色主題' : '切換成深色主題';
     btn.setAttribute('aria-label', dark ? '切換成淺色主題' : '切換成深色主題');
   };
   btn.addEventListener('click', () => { setTheme(currentTheme() === 'dark' ? 'light' : 'dark'); paint(); });
@@ -246,12 +247,15 @@ function buildShell() {
   for (const group of NAV) {
     if (group.label) navEl.append(h('div', { class: 'nav-label' }, group.label));
     for (const page of group.items) {
-      navEl.append(h('a', { href: `#/${page.id}`, dataset: { page: page.id } }, icon(page.icon), page.title));
+      // 平板的圖示側欄只顯示圖示：文字留給報讀器，滑鼠移上去看 title
+      navEl.append(h('a', { href: `#/${page.id}`, title: page.title, dataset: { page: page.id } },
+        icon(page.icon), h('span', { class: 'nav-text' }, page.title)));
     }
   }
 
   const switcher = h('nav', { class: 'bot-switch', 'aria-label': '選擇 Bot' });
   const topBot = h('button', { type: 'button', class: 'topbar-bot', 'aria-label': '切換 Bot' });
+  const switchNote = h('div', { class: 'bot-switch-note', hidden: true });
   const title = h('h1');
   const sub = h('div', { class: 'topbar-sub' });
   const actions = h('div', { class: 'topbar-actions' });
@@ -263,12 +267,26 @@ function buildShell() {
     h('span', null, '有新版本。重新載入就能套用。'),
     h('button', { type: 'button', class: 'btn btn-sm', onclick: reloadForUpdate }, icon('refresh', 'ic-sm'), '重新載入'));
 
+  // 完整側欄只在手機（抽屜）和平板（圖示側欄展開）用得到；電腦版側欄本來就是展開的
+  const wide = matchMedia('(min-width: 1025px)');
+  let navOpener = null; // 誰打開的：按 Esc 關掉後把焦點還給它
+  const openNav = (e) => {
+    if (wide.matches) return;
+    navOpener = e?.currentTarget ?? null;
+    app.classList.add('nav-open');
+  };
   const closeNav = () => app.classList.remove('nav-open');
+  wide.addEventListener('change', closeNav);
+  app.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || !app.classList.contains('nav-open')) return;
+    closeNav();
+    if (navOpener?.isConnected && !navOpener.hidden) navOpener.focus();
+  });
   navEl.addEventListener('click', (e) => { if (e.target.closest('a')) closeNav(); });
   switcher.addEventListener('click', (e) => { if (e.target.closest('a')) closeNav(); });
-  topBot.addEventListener('click', () => app.classList.add('nav-open'));
+  topBot.addEventListener('click', openNav);
 
-  const moreBtn = h('button', { type: 'button', 'aria-label': '更多頁面', onclick: () => app.classList.add('nav-open') }, icon('menu'), '更多');
+  const moreBtn = h('button', { type: 'button', 'aria-label': '更多頁面', onclick: openNav }, icon('menu'), '更多');
   const tabbar = h('nav', { class: 'tabbar', 'aria-label': '常用頁面' },
     TABS.map(([id, label]) => h('a', { href: `#/${id}`, dataset: { page: id } }, icon(PAGES.get(id).icon), label)),
     moreBtn,
@@ -281,11 +299,12 @@ function buildShell() {
         h('div', null, h('div', { class: 'brand-name' }, '管理面板'), h('div', { class: 'brand-sub' }, 'Discord Bot')),
       ),
       switcher,
+      switchNote,
       navEl,
       h('div', { class: 'sidebar-foot' },
         h('div', { class: 'sidebar-actions' },
           themeButton(),
-          h('button', { type: 'button', class: 'btn btn-sm', onclick: logout }, icon('logout', 'ic-sm'), '登出'),
+          h('button', { type: 'button', class: 'btn btn-sm', title: '登出', onclick: logout }, icon('logout', 'ic-sm'), h('span', { class: 'btn-text' }, '登出')),
         ),
       ),
     ),
@@ -294,7 +313,7 @@ function buildShell() {
       h('header', { class: 'topbar' },
         h('button', {
           type: 'button', class: 'btn btn-ghost btn-icon menu-btn', 'aria-label': '開啟選單',
-          onclick: () => app.classList.add('nav-open'),
+          onclick: openNav,
         }, icon('menu')),
         h('div', { class: 'row-main' }, title, sub),
         topBot,
@@ -309,7 +328,7 @@ function buildShell() {
   root.className = '';
   root.removeAttribute('aria-busy');
   root.replaceChildren(app);
-  return { app, nav: navEl, tabbar, moreBtn, title, sub, actions, content, switcher, topBot, updateBar };
+  return { app, nav: navEl, tabbar, moreBtn, title, sub, actions, content, switcher, switchNote, topBot, updateBar };
 }
 
 function botStatus(b) {
@@ -340,6 +359,10 @@ function paintBots() {
       ));
     })
     : h('div', { class: 'hint bot-switch-empty' }, '還沒有設定任何 Bot（面板的 PANEL_BOTS）'));
+  // Bot 很多時清單會捲動：在下方寫總數與離線數，捲不到的那幾隻也知道狀態
+  const offline = bots.filter((b) => !b.online).length;
+  shell.switchNote.hidden = bots.length <= 4;
+  shell.switchNote.textContent = `共 ${bots.length} 隻${offline ? `，${offline} 隻離線` : ''}`;
 
   const cur = botById(currentBot);
   shell.topBot.hidden = !cur;

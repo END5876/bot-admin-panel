@@ -131,6 +131,7 @@ svg.logo .logo-eye { fill: var(--card); }
   background: var(--card);
   border-right: 1px solid var(--line);
   overflow-y: auto;
+  padding-bottom: 0;
 }
 .brand {
   display: flex; align-items: center; gap: 10px;
@@ -162,10 +163,14 @@ svg.logo .logo-eye { fill: var(--card); }
 .nav a:hover { background: var(--surface-hover); color: var(--ink); }
 .nav a[aria-current="page"] { background: var(--accent-tint); color: var(--accent-ink); font-weight: 600; }
 
+/* 「主題／登出」固定在側欄底部：Bot 或頁面很多時也一直看得到 */
 .sidebar-foot {
-  margin-top: auto;
-  padding-top: 14px;
+  position: sticky; bottom: 0;
+  margin: auto -12px 0;
+  padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
   display: grid; gap: 10px;
+  background: var(--card);
+  border-top: 1px solid var(--line);
 }
 .bot-chip {
   display: flex; align-items: center; gap: 10px;
@@ -177,7 +182,9 @@ svg.logo .logo-eye { fill: var(--card); }
 .bot-chip-name { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bot-chip-status { font-size: 12px; color: var(--ink-faint); display: flex; align-items: center; gap: 6px; }
 /* 側邊欄上方的 Bot 清單：點一下切換要管理的 Bot */
-.bot-switch { display: grid; gap: 6px; padding-bottom: 6px; }
+/* Bot 很多時清單自己捲動（不縮小：側欄放不下時整條側欄捲動，底部的主題／登出固定） */
+.bot-switch { display: grid; gap: 6px; padding-bottom: 6px; flex-shrink: 0; max-height: min(34vh, 320px); overflow-y: auto; }
+.bot-switch-note { padding: 0 10px 6px; font-size: 12px; color: var(--ink-faint); }
 .bot-switch .bot-chip {
   color: inherit; text-decoration: none;
   border: 1px solid transparent;
@@ -200,12 +207,16 @@ svg.logo .logo-eye { fill: var(--card); }
 .sidebar-actions { display: flex; gap: 6px; }
 .sidebar-actions .btn { flex: 1; }
 
-.main { min-width: 0; display: flex; flex-direction: column; }
+.main {
+  min-width: 0; display: flex; flex-direction: column;
+  /* 超寬螢幕：內容置中，頁首與新版本橫幅的左右留白跟著內容走，按鈕和內容右緣對齊 */
+  --page-pad-x: max(32px, calc((100% - 1240px) / 2 + 32px));
+}
 .topbar {
   position: sticky; top: 0; z-index: 10;
   display: flex; align-items: center; gap: 12px;
   min-height: 64px;
-  padding: 12px 32px;
+  padding: 12px var(--page-pad-x);
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: blur(10px);
 }
@@ -217,12 +228,14 @@ svg.logo .logo-eye { fill: var(--card); }
 .content {
   width: 100%;
   max-width: 1240px;
+  margin-inline: auto;
   padding: 4px 32px 56px;
 }
 .page { display: grid; gap: 18px; }
 .nav-scrim { display: none; }
 
-@media (max-width: 880px) {
+/* ── 手機（≤640）：側欄收成抽屜，底部分頁列 ────────────── */
+@media (max-width: 640px) {
   .app { grid-template-columns: minmax(0, 1fr); }
   .sidebar {
     position: fixed; inset: 0 auto 0 0; z-index: 40;
@@ -235,21 +248,45 @@ svg.logo .logo-eye { fill: var(--card); }
   .app.nav-open .nav-scrim {
     display: block; position: fixed; inset: 0; z-index: 30; background: var(--scrim);
   }
-  .topbar { padding: 10px 16px; padding-top: calc(10px + env(safe-area-inset-top, 0px)); min-height: 56px; }
+  .main { --page-pad-x: 16px; }
+  .topbar { padding-top: calc(10px + env(safe-area-inset-top, 0px)); padding-bottom: 10px; min-height: 56px; }
   .topbar h1 { font-size: 18px; }
   .topbar-sub { display: none; }
   /* 底部留給分頁列 */
   .content { padding: 4px 16px calc(var(--tabbar-h) + 24px + env(safe-area-inset-bottom, 0px)); }
   .app > .tabbar { display: grid; } /* 選擇器較具體：下方 .tabbar 的 display: none 才不會蓋掉 */
-  .sidebar { padding-bottom: 0; }
-  /* 抽屜選單很長時，Bot 狀態與「主題／登出」固定在底部 */
-  .sidebar-foot {
-    position: sticky; bottom: 0;
-    margin: 0 -12px; padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
-    background: var(--card);
-    border-top: 1px solid var(--line);
-  }
   .sidebar .brand { padding-top: env(safe-area-inset-top, 0px); }
+}
+
+/* ── 平板（641～1024）：64px 圖示側欄；點頁首的 Bot 膠囊展開完整側欄（疊在畫面上）──── */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .app { grid-template-columns: 64px minmax(0, 1fr); }
+  .main { grid-column: 2; --page-pad-x: 24px; }
+  .content { padding: 4px 24px 48px; }
+  .app:not(.nav-open) .sidebar { padding: 14px 8px 0; overflow-x: hidden; }
+  .app:not(.nav-open) .brand { justify-content: center; padding: 0 0 14px; }
+  .app:not(.nav-open) .brand > :not(.brand-mark),
+  .app:not(.nav-open) .bot-switch,
+  .app:not(.nav-open) .bot-switch-note { display: none; }
+  /* 分組標題變成細分隔線（文字仍留給報讀器） */
+  .app:not(.nav-open) .nav-label { height: 1px; margin: 8px 10px; padding: 0; overflow: hidden; font-size: 0; background: var(--line); }
+  .app:not(.nav-open) .nav a { justify-content: center; padding: 11px 0; }
+  .app:not(.nav-open) .nav a svg.ic { width: 20px; height: 20px; }
+  .app:not(.nav-open) :is(.nav-text, .btn-text) {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+  }
+  .app:not(.nav-open) .sidebar-foot { margin: auto -8px 0; padding: 10px 8px calc(10px + env(safe-area-inset-bottom, 0px)); }
+  .app:not(.nav-open) .sidebar-actions { flex-direction: column; }
+  .app:not(.nav-open) .sidebar-actions .btn { height: 36px; gap: 0; padding: 0; justify-content: center; }
+  .app.nav-open .sidebar {
+    position: fixed; inset: 0 auto 0 0; z-index: 40;
+    width: min(280px, 84vw);
+    box-shadow: var(--shadow-lg);
+  }
+  .app.nav-open .nav-scrim { display: block; position: fixed; inset: 0; z-index: 30; background: var(--scrim); }
+  /* 沒有任何 Bot 時頁首沒有 Bot 膠囊：改顯示選單鈕，才打得開完整側欄 */
+  .topbar:has(> .topbar-bot[hidden]) .menu-btn { display: inline-flex; }
 }
 
 /* ── 手機：底部分頁列（常用頁面＋「更多」打開完整選單）──── */
@@ -257,7 +294,8 @@ svg.logo .logo-eye { fill: var(--card); }
 .tabbar {
   display: none;
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  /* 分頁平分寬度：Bot 少了某一頁時，其餘平分，「更多」仍在最右邊 */
+  grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
   height: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
   padding-bottom: env(safe-area-inset-bottom, 0px);
   background: color-mix(in srgb, var(--card) 94%, transparent);
@@ -316,6 +354,19 @@ svg.logo .logo-eye { fill: var(--card); }
 .stats {
   display: grid; gap: 14px;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+}
+/* 總覽的 5 格摘要：依內容寬度決定欄數，用量格（.stat-wide）在 2、3 欄時跨 2 欄，不會落單 */
+.ov-stats-wrap { container: ovstats / inline-size; }
+@container ovstats (min-width: 480px) {
+  .ov-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ov-stats > .stat-wide { grid-column: span 2; }
+}
+@container ovstats (min-width: 620px) {
+  .ov-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@container ovstats (min-width: 980px) {
+  .ov-stats { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .ov-stats > .stat-wide { grid-column: auto; }
 }
 .stat {
   padding: 14px 16px;
@@ -669,9 +720,9 @@ dialog.modal::backdrop { background: var(--scrim); }
 /* ── AI 人格 ──────────────────────────────────────────── */
 .split { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 18px; align-items: start; }
 .split > .card:first-child { position: sticky; top: 76px; max-height: calc(100dvh - 96px); overflow-y: auto; }
+/* 平板：清單收窄，仍維持雙欄（≤640 才改成清單 → 編輯器兩層切換，見手機版面） */
 @media (max-width: 960px) {
-  .split { grid-template-columns: minmax(0, 1fr); }
-  .split > .card:first-child { position: static; max-height: none; }
+  .split { grid-template-columns: 220px minmax(0, 1fr); }
 }
 .list-label { padding: 12px 16px 6px; font-size: 12px; font-weight: 600; color: var(--ink-faint); display: flex; align-items: center; }
 .list-label .btn { margin-left: auto; }
@@ -881,7 +932,7 @@ details.disclosure[open] > summary svg.ic { transform: rotate(90deg); }
 .restart-banner.is-warn .restart-box { background: var(--warn-tint); color: var(--warn-ink); border-color: transparent; }
 .restart-banner.is-warn .spinner { display: none; }
 /* 有新版本：主區頂端的細橫幅（.callout 的滿版版本），不擋操作 */
-.update-banner { align-items: center; flex-wrap: wrap; border-radius: 0; padding: 8px 24px; background: var(--accent-tint); color: var(--ink); border-bottom: 1px solid var(--line); }
+.update-banner { align-items: center; flex-wrap: wrap; border-radius: 0; padding: 8px var(--page-pad-x); background: var(--accent-tint); color: var(--ink); border-bottom: 1px solid var(--line); }
 .update-banner > span { flex: 1; min-width: 12em; }
 .update-banner svg.ic { margin-top: 0; color: var(--accent-ink); }
 
@@ -1030,7 +1081,12 @@ svg.ic.flip { transform: rotate(180deg); }
   .table-responses .td-actions .row-actions { flex-wrap: wrap; justify-content: flex-end; max-width: 84px; }
 
   /* AI 人格：清單 → 編輯器 兩層切換 */
+  .split { grid-template-columns: minmax(0, 1fr); }
   .split > .card:first-child { position: static; max-height: none; }
+
+  /* 維護：攤平兩欄，重新啟動卡排第一 */
+  .maint-grid, .maint-grid > .page { display: contents; }
+  .maint-restart { order: -1; }
   .split.has-selection > .card:first-child { display: none; }
   .split:not(.has-selection) > .card:last-child { display: none; }
   .back-btn { display: inline-flex; }
@@ -1072,12 +1128,6 @@ svg.ic.flip { transform: rotate(180deg); }
 }
 
 @keyframes sheet-in { from { transform: translateY(48px); opacity: .4; } }
-
-/* 有分頁列時，日誌頁的高度要扣掉它 */
-@media (max-width: 880px) and (min-width: 641px) {
-  .log-view { height: calc(100dvh - 260px - var(--tabbar-h)); }
-  .toasts { bottom: calc(var(--tabbar-h) + 16px); }
-}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
