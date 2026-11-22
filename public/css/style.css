@@ -34,7 +34,9 @@
   --shadow: 0 1px 2px rgba(20, 24, 36, .05), 0 8px 24px rgba(20, 24, 36, .07);
   --shadow-lg: 0 16px 48px rgba(20, 24, 36, .2);
   --scrim: rgba(15, 17, 24, .5);
-  --focus: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
+  /* 鍵盤焦點環（實線，對比夠）與輸入框、下拉選單、關閉狀態開關的邊框（對白底 3.4:1） */
+  --focus-ring: var(--accent);
+  --control-border: #858B9A;
   --radius: 12px;
   --radius-sm: 8px;
   --sidebar-w: 236px;
@@ -51,6 +53,8 @@
   --surface-hover: #383A40;
   --line: #3A3C42;
   --line-strong: #4E5058;
+  --focus-ring: var(--accent-ink);
+  --control-border: #80848E;
   --ink: #F2F3F5;
   --ink-soft: #B5BAC1;
   --ink-faint: #9AA0A9;
@@ -93,7 +97,7 @@ code {
   background: var(--surface-hover);
 }
 button { font: inherit; color: inherit; }
-:focus-visible { outline: none; box-shadow: var(--focus); }
+:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 [hidden] { display: none !important; }
 .sprite { display: none; }
 .spacer { flex: 1 1 auto; }
@@ -117,11 +121,11 @@ svg.logo .logo-eye { fill: var(--card); }
 .app {
   display: grid;
   grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 .sidebar {
   position: sticky; top: 0;
-  height: 100vh;
+  height: 100dvh;
   display: flex; flex-direction: column;
   padding: 18px 12px 14px;
   background: var(--card);
@@ -366,7 +370,7 @@ svg.logo .logo-eye { fill: var(--card); }
   width: 100%;
   min-height: 36px;
   padding: 6px 10px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-sm);
   background: var(--field);
   color: var(--ink);
@@ -375,7 +379,8 @@ svg.logo .logo-eye { fill: var(--card); }
 .select { padding-right: 28px; }
 .textarea { resize: vertical; line-height: 1.6; padding: 8px 10px; }
 .textarea.code { font-family: var(--mono); font-size: 13px; line-height: 1.65; tab-size: 2; }
-.input:focus, .select:focus, .textarea:focus { outline: none; border-color: var(--accent); box-shadow: var(--focus); }
+/* 輸入框聚焦：邊框加 1px 外框成 2px 主色（版面不跳動；用 outline，高對比模式也看得到） */
+.input:focus, .select:focus, .textarea:focus { outline: 1px solid var(--focus-ring); outline-offset: 0; border-color: var(--focus-ring); }
 .input[readonly] { background: var(--surface); color: var(--ink-soft); }
 .field { display: grid; gap: 6px; min-width: 0; }
 .field > label, .field-label { font-size: 13px; font-weight: 600; color: var(--ink-soft); }
@@ -395,7 +400,7 @@ svg.logo .logo-eye { fill: var(--card); }
   position: relative; flex: none;
   width: 38px; height: 22px;
   border-radius: 11px;
-  background: var(--line-strong);
+  background: var(--control-border);
   transition: background .15s;
 }
 .switch-track::after {
@@ -407,7 +412,7 @@ svg.logo .logo-eye { fill: var(--card); }
 }
 .switch input:checked + .switch-track { background: var(--accent); }
 .switch input:checked + .switch-track::after { transform: translateX(16px); }
-.switch input:focus-visible + .switch-track { box-shadow: var(--focus); }
+.switch input:focus-visible + .switch-track { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .switch input:disabled + .switch-track { opacity: .55; }
 .switch-label { font-size: 13.5px; }
 
@@ -568,16 +573,30 @@ svg.logo .logo-eye { fill: var(--card); }
   pointer-events: auto;
   animation: toast-in .18s ease-out;
 }
-.toast svg.ic { width: 17px; height: 17px; }
+.toast svg.ic { width: 17px; height: 17px; flex: none; }
+.toast-msg { min-width: 0; overflow-wrap: anywhere; }
 .toast-success svg.ic { color: #5DD879; }
 .toast-error { background: var(--bad); color: #FFFFFF; }
+/* 帶動作的提示（復原、重試）與錯誤的關閉鈕 */
+.toast-act, .toast-close {
+  flex: none; border: 0; background: none; color: inherit; font: inherit; font-weight: 700; cursor: pointer;
+  border-radius: 8px;
+}
+.toast-act { margin-left: auto; padding: 4px 10px; }
+.toast-close { display: inline-grid; place-items: center; width: 28px; height: 28px; margin: -4px -6px -4px auto; }
+.toast-act:hover, .toast-close:hover { background: color-mix(in srgb, currentColor 16%, transparent); }
+.toast-close svg.ic { width: 15px; height: 15px; color: inherit; }
+@media (pointer: coarse) {
+  .toast-act { min-height: 40px; padding: 8px 14px; }
+  .toast-close { width: 40px; height: 40px; }
+}
 .toast.is-leaving { opacity: 0; transform: translateY(6px); transition: opacity .2s, transform .2s; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
 
 /* ── 對話框 ───────────────────────────────────────────── */
 dialog.modal {
   width: min(560px, calc(100vw - 24px));
-  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
   padding: 0;
   border: 0;
   border-radius: 14px;
@@ -606,7 +625,7 @@ dialog.modal::backdrop { background: var(--scrim); }
 .confirm-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* ── 登入 ─────────────────────────────────────────────── */
-.login-wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
+.login-wrap { min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px; }
 .login-card { width: min(400px, 100%); padding: 32px 28px 28px; display: grid; gap: 20px; }
 .login-brand { display: grid; justify-items: center; gap: 10px; text-align: center; }
 .login-brand .brand-mark { width: 56px; height: 56px; padding: 8px; border-radius: 16px; }
@@ -649,7 +668,7 @@ dialog.modal::backdrop { background: var(--scrim); }
 
 /* ── AI 人格 ──────────────────────────────────────────── */
 .split { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 18px; align-items: start; }
-.split > .card:first-child { position: sticky; top: 76px; max-height: calc(100vh - 96px); overflow-y: auto; }
+.split > .card:first-child { position: sticky; top: 76px; max-height: calc(100dvh - 96px); overflow-y: auto; }
 @media (max-width: 960px) {
   .split { grid-template-columns: minmax(0, 1fr); }
   .split > .card:first-child { position: static; max-height: none; }
@@ -671,9 +690,9 @@ dialog.modal::backdrop { background: var(--scrim); }
 .pick-sub { font-size: 12.5px; color: var(--ink-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .editor-textarea { min-height: 420px; }
 .version-layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 14px; }
-.version-list { max-height: 52vh; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.version-list { max-height: 52dvh; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius-sm); }
 .version-preview {
-  margin: 0; max-height: 52vh; overflow: auto;
+  margin: 0; max-height: 52dvh; overflow: auto;
   padding: 12px 14px;
   border-radius: var(--radius-sm);
   background: var(--surface);
@@ -781,7 +800,7 @@ details.disclosure[open] > summary svg.ic { transform: rotate(90deg); }
 .wake-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; width: 100%; }
 .wake-row .select { flex: 1 1 200px; width: auto; max-width: 320px; }
 .enqueue-panel { margin-top: 14px; display: grid; gap: 10px; }
-.enqueue-list { max-height: 52vh; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.enqueue-list { max-height: 52dvh; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius-sm); }
 .enqueue-list .row { padding: 9px 14px; }
 .block-link { display: block; font-weight: 600; }
 .enqueue-url-actions { margin-top: 4px; }
@@ -813,7 +832,7 @@ details.disclosure[open] > summary svg.ic { transform: rotate(90deg); }
 .hour.is-ok svg.ic { color: var(--good-ink); }
 .hour.is-missing { background: var(--bad-tint); color: var(--bad-ink); }
 .games { display: grid; gap: 12px; }
-.history-list { margin-top: 12px; max-height: 55vh; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.history-list { margin-top: 12px; max-height: 55dvh; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius-sm); }
 .history-list .row { padding: 9px 14px; }
 .game { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 14px; align-items: start; }
 .game img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; background: var(--surface-hover); }
@@ -861,6 +880,10 @@ details.disclosure[open] > summary svg.ic { transform: rotate(90deg); }
 .restart-banner .restart-msg { font-weight: 600; }
 .restart-banner.is-warn .restart-box { background: var(--warn-tint); color: var(--warn-ink); border-color: transparent; }
 .restart-banner.is-warn .spinner { display: none; }
+/* 有新版本：主區頂端的細橫幅（.callout 的滿版版本），不擋操作 */
+.update-banner { align-items: center; flex-wrap: wrap; border-radius: 0; padding: 8px 24px; background: var(--accent-tint); color: var(--ink); border-bottom: 1px solid var(--line); }
+.update-banner > span { flex: 1; min-width: 12em; }
+.update-banner svg.ic { margin-top: 0; color: var(--accent-ink); }
 
 /* ── 操作紀錄 ─────────────────────────────────────────── */
 .audit-time { white-space: nowrap; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
@@ -869,7 +892,7 @@ details.disclosure[open] > summary svg.ic { transform: rotate(90deg); }
 
 /* ── 日誌 ─────────────────────────────────────────────── */
 .log-view {
-  height: calc(100vh - 250px);
+  height: calc(100dvh - 250px);
   min-height: 320px;
   overflow: auto;
   font-family: var(--mono);
@@ -901,7 +924,7 @@ details.disclosure[open] > summary svg.ic { transform: rotate(90deg); }
 @media (max-width: 640px) {
   .log-row { grid-template-columns: 18px minmax(0, 1fr); padding: 4px 12px; }
   .log-time { grid-column: 2; order: -1; font-size: 11px; }
-  .log-view { height: calc(100vh - 290px); }
+  .log-view { height: calc(100dvh - 290px); }
 }
 
 /* ══════════════════════════════════════════════════════
@@ -1011,7 +1034,7 @@ svg.ic.flip { transform: rotate(180deg); }
   .split.has-selection > .card:first-child { display: none; }
   .split:not(.has-selection) > .card:last-child { display: none; }
   .back-btn { display: inline-flex; }
-  .editor-textarea { min-height: 52vh; }
+  .editor-textarea { min-height: 52dvh; }
 
   /* 語音 */
   .chance-row { gap: 10px; }
@@ -1023,7 +1046,7 @@ svg.ic.flip { transform: rotate(180deg); }
   dialog.modal, dialog.modal.modal-wide {
     width: 100%; max-width: 100vw;
     margin: auto 0 0;
-    max-height: 92vh;
+    max-height: 92dvh;
     border-radius: 18px 18px 0 0;
   }
   dialog.modal[open] { animation: sheet-in .22s ease-out; }
@@ -1044,7 +1067,7 @@ svg.ic.flip { transform: rotate(180deg); }
   /* 對話框是從底部滑出的面板，提示訊息改貼在畫面上方，不要擋住對話框的按鈕 */
   dialog.modal > .toasts { top: calc(12px + env(safe-area-inset-top, 0px)); bottom: auto; }
 
-  .log-view { height: calc(100vh - 300px - var(--tabbar-h)); }
+  .log-view { height: calc(100dvh - 300px - var(--tabbar-h)); }
   .log-jump { bottom: 12px; }
 }
 
@@ -1052,14 +1075,16 @@ svg.ic.flip { transform: rotate(180deg); }
 
 /* 有分頁列時，日誌頁的高度要扣掉它 */
 @media (max-width: 880px) and (min-width: 641px) {
-  .log-view { height: calc(100vh - 260px - var(--tabbar-h)); }
+  .log-view { height: calc(100dvh - 260px - var(--tabbar-h)); }
   .toasts { bottom: calc(var(--tabbar-h) + 16px); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  /* 載入中的轉圈是「還在進行」的訊號，不是裝飾：維持慢速轉動 */
+  .spinner { animation-duration: .8s !important; }
 }
 
 /* 還原設定備份的預覽：檔案很多時表格自己捲動 */
-.restore-table { max-height: 40vh; overflow-y: auto; }
+.restore-table { max-height: 40dvh; overflow-y: auto; }
 .restore-skipped { margin: 4px 0 0; padding-left: 18px; }

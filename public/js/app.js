@@ -58,7 +58,7 @@ const PAGES = new Map(NAV.flatMap((g) => g.items).map((p) => [p.id, p]));
 const TABS = [['overview', '總覽'], ['voice', '語音'], ['responses', '回應'], ['prompts', '人格']];
 
 const root = document.getElementById('app');
-let shell = null;      // { app, nav, tabbar, moreBtn, title, sub, actions, content, switcher, topBot }
+let shell = null;      // { app, nav, tabbar, moreBtn, title, sub, actions, content, switcher, topBot, updateBar }
 let current = null;    // { key, id, bot, ctx }
 let suppressHash = false;
 let bots = [];         // GET /api/bots：[{ id, online, features, ready, ping, bot, error }]
@@ -220,8 +220,20 @@ function promptRelogin() {
   input.focus();
 }
 
+// 頁面有沒存的變更時先問；回傳 true＝可以繼續（沒有變更，或使用者選擇放棄）
+async function confirmDiscard(action, message) {
+  if (!current?.ctx.isDirty()) return true;
+  return confirmDialog({ title: `放棄未儲存的變更並${action}？`, message, confirmText: `放棄並${action}`, cancelText: '繼續編輯' });
+}
+
+async function reloadForUpdate() {
+  if (!await confirmDiscard('重新載入', '重新載入後，剛剛改的內容會遺失。可以先儲存再重新載入。')) return;
+  current?.ctx.setDirty(false);
+  location.reload();
+}
+
 async function logout() {
-  if (current?.ctx.isDirty() && !await confirmDialog({ title: '放棄未儲存的變更並登出？', message: '登出後，剛剛改的內容會遺失。', confirmText: '放棄並登出', cancelText: '繼續編輯' })) return;
+  if (!await confirmDiscard('登出', '登出後，剛剛改的內容會遺失。')) return;
   try { await api.post('/api/logout'); } catch {}
   showLogin('已登出');
 }
@@ -245,6 +257,11 @@ function buildShell() {
   const actions = h('div', { class: 'topbar-actions' });
   const content = h('div', { class: 'content', id: 'content' });
   const app = h('div', { class: 'app' });
+  // 面板部署了新版：常駐細橫幅，讓管理員自己決定什麼時候重新載入（不在換頁時強制重新載入）
+  const updateBar = h('div', { class: 'callout update-banner', role: 'status', hidden: !outdated },
+    icon('info', 'ic-sm'),
+    h('span', null, '有新版本。重新載入就能套用。'),
+    h('button', { type: 'button', class: 'btn btn-sm', onclick: reloadForUpdate }, icon('refresh', 'ic-sm'), '重新載入'));
 
   const closeNav = () => app.classList.remove('nav-open');
   navEl.addEventListener('click', (e) => { if (e.target.closest('a')) closeNav(); });
@@ -283,6 +300,7 @@ function buildShell() {
         topBot,
         actions,
       ),
+      updateBar,
       h('main', { class: 'content-wrap' }, content),
     ),
     tabbar,
@@ -291,7 +309,7 @@ function buildShell() {
   root.className = '';
   root.removeAttribute('aria-busy');
   root.replaceChildren(app);
-  return { app, nav: navEl, tabbar, moreBtn, title, sub, actions, content, switcher, topBot };
+  return { app, nav: navEl, tabbar, moreBtn, title, sub, actions, content, switcher, topBot, updateBar };
 }
 
 function botStatus(b) {
@@ -354,7 +372,7 @@ async function loadBots() {
   if (!panelVersion) panelVersion = res.panelVersion;
   else if (res.panelVersion !== panelVersion && !outdated) {
     outdated = true;
-    toast('管理面板已更新，切換頁面時會自動載入新版', { type: 'info' });
+    if (shell) shell.updateBar.hidden = false;
   }
 }
 
@@ -457,14 +475,8 @@ async function route() {
     return;
   }
 
-  // 面板部署了新版：記憶體裡的頁面程式是舊的，直接重新載入到要去的那一頁（有未儲存的變更時先照常詢問）
-  if (outdated && !current?.ctx.isDirty()) {
-    location.reload();
-    return;
-  }
-
   if (current?.ctx.isDirty()) {
-    const leave = await confirmDialog({ title: '放棄未儲存的變更並離開？', message: '離開這一頁後，還沒儲存的內容會遺失。', confirmText: '放棄並離開', cancelText: '繼續編輯' });
+    const leave = await confirmDiscard('離開', '離開這一頁後，還沒儲存的內容會遺失。');
     if (!leave) {
       suppressHash = true;
       location.hash = pageHash(current.id, current.bot);

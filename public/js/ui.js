@@ -8,16 +8,62 @@ import { fmtTime } from './format.js';
 let toastBox = null;
 const toastsEl = () => (toastBox ??= document.getElementById('toasts'));
 
-export function toast(message, { type = 'success', timeout = 3200 } = {}) {
+// 三個產品共用的規則（ui-review DECISIONS 第 3 題）：
+// - 輕量成功／說明：3 秒後消失
+// - 帶動作（action：{ label, onClick }，例如復原、重試）：8 秒，滑鼠移上去、手指按住或鍵盤聚焦時暫停倒數
+// - 錯誤：不自動消失，紅底白字、有關閉鈕、role="alert"
+// - 要後續處理的錯誤（例如重啟超過 3 分鐘）不要用 toast，改放卡片內的常駐提示
+const MAX_TOASTS = 4;
+export function toast(message, { type = 'success', timeout, action } = {}) {
   const box = toastsEl();
   if (!box) return;
-  const iconName = type === 'error' ? 'alert' : type === 'info' ? 'info' : 'check';
-  const el = h('div', { class: ['toast', `toast-${type}`], role: type === 'error' ? 'alert' : null }, icon(iconName), h('span', null, message));
-  box.append(el);
-  setTimeout(() => {
+  const isError = type === 'error';
+  const iconName = isError ? 'alert' : type === 'info' ? 'info' : 'check';
+  const el = h('div', { class: ['toast', `toast-${type}`], role: isError ? 'alert' : null },
+    icon(iconName), h('span', { class: 'toast-msg' }, message));
+  let timer = 0;
+  const dismiss = () => {
+    clearTimeout(timer);
+    if (!el.isConnected || el.classList.contains('is-leaving')) return;
     el.classList.add('is-leaving');
     setTimeout(() => el.remove(), 220);
-  }, type === 'error' ? Math.max(timeout, 5000) : timeout);
+  };
+  if (action) {
+    el.append(h('button', { type: 'button', class: 'toast-act', onclick: () => { dismiss(); action.onClick(); } }, action.label));
+  }
+  if (isError) {
+    el.append(h('button', { type: 'button', class: 'toast-close', 'aria-label': '關閉這則提示', onclick: dismiss }, icon('x')));
+  }
+  // 同一句錯誤還開著就不再疊一則（例如連按幾次儲存都失敗）
+  if (isError && [...box.querySelectorAll('.toast-error:not(.is-leaving) .toast-msg')].some((m) => m.textContent === message)) return;
+  box.append(el);
+  // 太多則同時堆著時，先收掉最舊的一般提示；錯誤要等使用者自己關，不算在內
+  const all = [...box.querySelectorAll('.toast:not(.is-leaving):not(.toast-error)')];
+  for (const old of all.slice(0, Math.max(0, all.length - MAX_TOASTS))) old.remove();
+  if (isError) return;
+
+  const ms = timeout ?? (action ? 8000 : 3000);
+  let remaining = ms;
+  let startedAt = Date.now();
+  let paused = false;
+  timer = setTimeout(dismiss, ms);
+  // 指標在上面或鍵盤焦點在裡面時暫停；兩者都離開後才繼續（至少再留 1.5 秒）
+  const pause = () => {
+    if (paused) return;
+    paused = true;
+    clearTimeout(timer);
+    remaining -= Date.now() - startedAt;
+  };
+  const maybeResume = () => setTimeout(() => {
+    if (!paused || el.matches(':hover') || el.contains(document.activeElement)) return;
+    paused = false;
+    startedAt = Date.now();
+    timer = setTimeout(dismiss, Math.max(1500, remaining));
+  }, 0);
+  el.addEventListener('pointerenter', pause);
+  el.addEventListener('pointerleave', maybeResume);
+  el.addEventListener('focusin', pause);
+  el.addEventListener('focusout', maybeResume);
 }
 
 export const toastError = (err) => toast(err?.message || String(err), { type: 'error' });
