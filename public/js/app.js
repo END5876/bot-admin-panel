@@ -25,7 +25,7 @@ const PANEL_TITLE = 'Bot 管理面板';
 const THEME_COLORS = { light: '#F3F4F7', dark: '#1E1F22' };
 
 const NAV = [
-  { items: [{ id: 'overview', title: '總覽', sub: 'Bot 狀態一覽', icon: 'home', mount: overview }] },
+  { items: [{ id: 'overview', title: '總覽', sub: 'Bot 是否正常運作', icon: 'home', mount: overview }] },
   {
     label: '對話',
     items: [
@@ -46,7 +46,7 @@ const NAV = [
   {
     label: '系統',
     items: [
-      { id: 'status', title: '狀態與訊息', sub: 'Bot 狀態文字、以 Bot 身分發訊息', icon: 'send', mount: status },
+      { id: 'status', title: '顯示狀態與發訊息', sub: 'Discord 上顯示的狀態、以 Bot 身分發訊息', icon: 'send', mount: status },
       { id: 'maintenance', title: '維護', sub: '指令同步、快取、備份、重新啟動', icon: 'tool', mount: maintenance },
       { id: 'audit', title: '操作紀錄', sub: '管理面板上做過的變更（所有 Bot）', icon: 'history', mount: auditLog, panel: true },
       { id: 'logs', title: '日誌', sub: '最近的執行紀錄', icon: 'terminal', mount: logs },
@@ -124,21 +124,21 @@ function themeButton() {
 // ════════════════════════════════════════════════════════
 //  登入
 // ════════════════════════════════════════════════════════
-function showLogin(message = '') {
+// kind：'error'（紅字、role=alert）或 'info'（中性灰字，例如「已登出」）
+function showLogin(message = '', kind = 'error') {
   disposePage();
   shell = null;
   const input = h('input', {
     class: 'input', type: 'password', id: 'password', autocomplete: 'current-password', required: true,
-    placeholder: 'ADMIN_PASSWORD',
   });
-  const error = h('div', { class: 'login-error', role: 'alert' }, message);
+  const error = h('div', kind === 'info' ? { class: 'login-error is-info', role: 'status' } : { class: 'login-error', role: 'alert' }, message);
   const submit = h('button', { type: 'submit', class: 'btn btn-primary' }, '登入');
 
   const form = h('form', { class: 'card login-card', novalidate: true },
     h('div', { class: 'login-brand' },
       h('div', { class: 'brand-mark' }, logo()),
       h('h1', null, PANEL_TITLE),
-      h('p', { class: 'hint' }, '請輸入在面板的 .env 設定的 ADMIN_PASSWORD'),
+      h('p', { class: 'hint' }, '輸入管理面板密碼。'),
     ),
     h('div', { class: 'field' }, h('label', { for: 'password' }, '密碼'), input),
     error,
@@ -147,8 +147,10 @@ function showLogin(message = '') {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!input.value) { error.textContent = '請輸入密碼'; input.focus(); return; }
+    if (!input.value) { error.className = 'login-error'; error.setAttribute('role', 'alert'); error.textContent = '請輸入密碼。'; input.focus(); return; }
     submit.disabled = true;
+    error.className = 'login-error';
+    error.setAttribute('role', 'alert');
     error.textContent = '';
     try {
       await api.post('/api/login', { password: input.value });
@@ -174,7 +176,6 @@ function promptRelogin() {
   if (reloginModal) return;
   const input = h('input', {
     class: 'input', type: 'password', id: 'relogin-password', autocomplete: 'current-password', required: true,
-    placeholder: 'ADMIN_PASSWORD',
   });
   const error = h('div', { class: 'login-error', role: 'alert' });
   const submit = h('button', { type: 'submit', class: 'btn btn-primary', form: 'relogin-form' }, '登入並繼續編輯');
@@ -198,11 +199,11 @@ function promptRelogin() {
     loggedIn = true; // 讓 close() 通過
     modal.close();
     current?.ctx.setDirty(false);
-    showLogin('登入已過期，請重新登入');
+    showLogin('登入已過期，請重新登入。', 'info');
   });
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!input.value) { error.textContent = '請輸入密碼'; input.focus(); return; }
+    if (!input.value) { error.textContent = '請輸入密碼。'; input.focus(); return; }
     submit.disabled = true;
     error.textContent = '';
     try {
@@ -236,7 +237,7 @@ async function reloadForUpdate() {
 async function logout() {
   if (!await confirmDiscard('登出', '登出後，剛剛改的內容會遺失。')) return;
   try { await api.post('/api/logout'); } catch {}
-  showLogin('已登出');
+  showLogin('已登出。', 'info');
 }
 
 // ════════════════════════════════════════════════════════
@@ -335,7 +336,7 @@ function botStatus(b) {
   if (botsStale) return ['neutral', '狀態未知'];
   if (!b?.online) return ['bad', '無法連線'];
   if (!b.ready) return ['warn', '連線 Discord 中…'];
-  return ['good', `線上 · ${b.ping >= 0 ? `${b.ping} ms` : '—'}`];
+  return ['good', b.ping >= 0 ? `線上（${b.ping} ms）` : '線上'];
 }
 
 // 側邊欄的 Bot 清單、頂端目前的 Bot，以及選單裡這隻 Bot 有的頁面
@@ -358,7 +359,7 @@ function paintBots() {
         h('div', { class: 'bot-chip-status' }, h('span', { class: ['dot', `dot-${kind}`] }), text),
       ));
     })
-    : h('div', { class: 'hint bot-switch-empty' }, '還沒有設定任何 Bot（面板的 PANEL_BOTS）'));
+    : h('div', { class: 'hint bot-switch-empty' }, '還沒有設定任何 Bot。請在管理面板的 .env 設定 PANEL_BOTS。'));
   // Bot 很多時清單會捲動：在下方寫總數與離線數，捲不到的那幾隻也知道狀態
   const offline = bots.filter((b) => !b.online).length;
   shell.switchNote.hidden = bots.length <= 4;
@@ -513,8 +514,8 @@ async function route() {
   shell.sub.textContent = page.sub;
   shell.actions.replaceChildren();
   document.title = page.panel || !botId
-    ? `${page.title} · ${PANEL_TITLE}`
-    : `${page.title} · ${botName(botById(botId))} · ${PANEL_TITLE}`;
+    ? `${page.title}｜${PANEL_TITLE}`
+    : `${page.title}｜${botName(botById(botId))}｜${PANEL_TITLE}`;
   current = { key, id, bot: botId, ctx: null };
   paintBots();
   for (const a of [...shell.nav.querySelectorAll('a'), ...shell.tabbar.querySelectorAll('a')]) {
@@ -548,7 +549,7 @@ async function startApp() {
 setUnauthorizedHandler(() => {
   if (!shell) return;
   if (current?.ctx.isDirty()) promptRelogin();
-  else showLogin('登入已過期，請重新登入');
+  else showLogin('登入已過期，請重新登入。', 'info');
 });
 window.addEventListener('hashchange', route);
 window.addEventListener('beforeunload', (e) => {

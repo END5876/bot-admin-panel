@@ -570,6 +570,9 @@ svg.logo .logo-eye { fill: var(--card); }
   display: grid; justify-items: center; gap: 8px;
 }
 .empty svg.ic { width: 28px; height: 28px; opacity: .7; }
+/* 空狀態的下一步按鈕（emptyState 的 action） */
+.empty .btn { margin-top: 4px; }
+.empty .btn svg.ic { width: 15px; height: 15px; opacity: 1; }
 .loading { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 40px 20px; color: var(--ink-faint); }
 .spinner {
   width: 18px; height: 18px; flex: none;
@@ -682,6 +685,13 @@ dialog.modal::backdrop { background: var(--scrim); }
 .login-brand .brand-mark { width: 56px; height: 56px; padding: 8px; border-radius: 16px; }
 .login-brand h1 { font-size: 20px; }
 .login-error { color: var(--bad-ink); font-size: 13px; min-height: 1.6em; }
+.login-error.is-info { color: var(--ink-soft); }
+/* 鍵盤快捷鍵提示只給有滑鼠鍵盤的裝置 */
+@media (hover: none) and (pointer: coarse) { .kbd-hint { display: none; } } /* 「已登出」「登入已過期」不是錯誤，用中性灰字 */
+/* 錯誤畫面的「詳細資訊」：給開發者看的原文，預設收起來 */
+.error-detail { margin-top: 6px; font-size: 12.5px; color: var(--ink-faint); }
+.error-detail summary { cursor: pointer; }
+.error-detail code { display: block; margin-top: 4px; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--mono); }
 
 /* ── 總覽 ─────────────────────────────────────────────── */
 .hero { display: flex; align-items: center; gap: 16px; padding: 18px; flex-wrap: wrap; }

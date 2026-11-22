@@ -70,7 +70,9 @@ export default function mountUsage(root, ctx) {
     chartArea,
   );
   const breakdown = h('div', { class: 'grid grid-3' });
-  const body = h('div', { class: 'page' }, statsEl, chartCard, breakdown);
+  // 「計費 token」的算法只寫在程式註解裡，管理員看不到：放在數字摘要下面
+  const billableNote = h('p', { class: 'hint' }, '計費 token＝總 token 扣掉 Google 搜尋帶回的內容（這部分不計費）。');
+  const body = h('div', { class: 'page' }, statsEl, billableNote, chartCard, breakdown);
 
   ctx.setActions(refreshBtn);
   root.append(h('div', { class: 'toolbar' }, rangeSeg), body);
@@ -95,7 +97,7 @@ export default function mountUsage(root, ctx) {
   }
 
   function render() {
-    if (!statsEl.isConnected) body.replaceChildren(statsEl, chartCard, breakdown);
+    if (!statsEl.isConnected) body.replaceChildren(statsEl, billableNote, chartCard, breakdown);
     const days = data.days;
     const total = sum(days.map((d) => d.total));
     const today = days[days.length - 1];
@@ -113,12 +115,12 @@ export default function mountUsage(root, ctx) {
     }
 
     statsEl.replaceChildren(
-      stat('期間計費 tokens', fmtCompact(total.billable),
-        `輸入 ${fmtCompact(total.prompt - total.toolUse)}・輸出 ${fmtCompact(total.output + total.thoughts)}`),
-      stat('呼叫次數', fmtInt(total.calls), total.calls ? `平均每次 ${fmtInt(total.billable / total.calls)} tokens` : '這段期間沒有呼叫'),
+      stat('期間計費 token', fmtCompact(total.billable),
+        `輸入 ${fmtCompact(total.prompt - total.toolUse)}，輸出 ${fmtCompact(total.output + total.thoughts)}`),
+      stat('呼叫次數', fmtInt(total.calls), total.calls ? `平均每次 ${fmtInt(total.billable / total.calls)} token` : '這段期間沒有 AI 呼叫。'),
       stat('Google 搜尋', `${fmtInt(total.searches)} 次`, '依搜尋次數計費'),
-      stat('今天', `${fmtCompact(today.total.billable)} tokens`,
-        budget > 0 ? `全體每日上限 ${fmtCompact(budget)}（${fmtPercent(today.total.billable / budget)}）` : `${fmtInt(today.total.calls)} 次呼叫・未設每日上限`,
+      stat('今天', `${fmtCompact(today.total.billable)} token`,
+        budget > 0 ? `全體每日上限 ${fmtCompact(budget)}（${fmtPercent(today.total.billable / budget)}）` : `${fmtInt(today.total.calls)} 次呼叫，沒有設定每日上限`,
         meter),
     );
 
@@ -138,12 +140,12 @@ export default function mountUsage(root, ctx) {
       chartArea.replaceChildren(h('div', { class: 'table-wrap' }, h('table', { class: 'table table-stack' },
         h('caption', { class: 'sr-only' }, '每日 token 用量'),
         h('thead', null, h('tr', null,
-          h('th', null, '日期'), h('th', { class: 'num' }, '計費 tokens'), h('th', { class: 'num' }, '呼叫'),
+          h('th', null, '日期'), h('th', { class: 'num' }, '計費 token'), h('th', { class: 'num' }, '呼叫'),
           h('th', { class: 'num' }, '搜尋'), h('th', { class: 'num' }, '輸入'), h('th', { class: 'num' }, '輸出'),
         )),
         h('tbody', null, [...data.days].reverse().map((d) => h('tr', null,
           h('td', null, fmtDayKey(d.date, true)),
-          h('td', { class: 'num', 'data-label': '計費 tokens' }, fmtInt(d.total.billable)),
+          h('td', { class: 'num', 'data-label': '計費 token' }, fmtInt(d.total.billable)),
           h('td', { class: 'num', 'data-label': '呼叫' }, fmtInt(d.total.calls)),
           h('td', { class: 'num', 'data-label': '搜尋' }, fmtInt(d.total.searches)),
           h('td', { class: 'num', 'data-label': '輸入' }, fmtInt(d.total.prompt - d.total.toolUse)),
@@ -168,7 +170,7 @@ export default function mountUsage(root, ctx) {
         const day = data.days[i];
         const sources = Object.entries(day.bySource).filter(([, b]) => b.billable > 0).sort((a, b) => b[1].billable - a[1].billable);
         return h('div', null,
-          h('div', { class: 'tip-value' }, `${fmtInt(d.value)} tokens`),
+          h('div', { class: 'tip-value' }, `${fmtInt(d.value)} token`),
           h('div', { class: 'tip-label' }, fmtDayKey(d.key, true)),
           h('div', { class: 'tip-rows' },
             tipRow('呼叫', `${fmtInt(day.total.calls)} 次`),
@@ -209,10 +211,10 @@ export default function mountUsage(root, ctx) {
       h('div', { class: 'card-head' }, h('h2', null, icon(iconName), title)),
       entries.length
         ? h('div', { class: 'table-wrap' }, h('table', { class: 'table' },
-          h('thead', null, h('tr', null, h('th', null, '項目'), h('th', { class: 'num' }, '呼叫'), h('th', { class: 'num' }, 'tokens'), h('th', null, '佔比'))),
+          h('thead', null, h('tr', null, h('th', null, '項目'), h('th', { class: 'num' }, '呼叫'), h('th', { class: 'num' }, 'token'), h('th', null, '佔比'))),
           h('tbody', null, rows),
         ))
-        : emptyState('沒有資料'),
+        : emptyState('這段期間沒有 AI 呼叫。'),
     );
   }
 

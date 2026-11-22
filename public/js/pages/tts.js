@@ -62,7 +62,7 @@ export default function mountTts(root, ctx) {
         ariaLabel: `${g.name} 的 SoVITS 模型`,
       });
       modelSel.disabled = !sovits.models.length;
-      const modelHint = h('div', { class: 'hint' }, sovits.online ? '' : 'SoVITS 離線中，暫時無法切換');
+      const modelHint = h('div', { class: 'hint' }, sovits.online ? '' : 'SoVITS 離線中，暫時不能切換。');
       modelSel.addEventListener('change', async () => {
         const key = modelSel.value;
         if (!key) return;
@@ -106,7 +106,7 @@ export default function mountTts(root, ctx) {
       });
 
       // Bot 沒啟用 AI 時 aiTTS 是 null：開關不會有作用，改顯示說明
-      const aiSwitch = g.aiTTS === null ? h('span', { class: 'hint' }, 'AI 未啟用（無法自動朗讀 AI 回覆）') : switchControl({
+      const aiSwitch = g.aiTTS === null ? h('span', { class: 'hint' }, 'AI 沒有啟用，不能自動朗讀 AI 回覆。') : switchControl({
         checked: g.aiTTS,
         label: 'AI 回覆自動朗讀',
         onChange: async (on) => {
@@ -147,7 +147,7 @@ export default function mountTts(root, ctx) {
       title: '各伺服器設定',
       iconName: 'server',
       tight: true,
-      body: blocks.length ? blocks : emptyState('Bot 還沒加入任何伺服器'),
+      body: blocks.length ? blocks : emptyState('Bot 還沒加入任何伺服器。'),
       note: '「AI 回覆自動朗讀」：Bot 在語音頻道時，把 AI 的文字回覆也念出來（等同 /ai tts）。試聽會照正常的 TTS 排隊，正在放的音樂會暫停。',
     });
   }

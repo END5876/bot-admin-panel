@@ -9,6 +9,9 @@ import { api, seg } from '../api.js';
 import { fmtDateTime, fmtInt } from '../format.js';
 import { confirmDialog, emptyState, errorState, loadingState, openModal, selectEl, toast, toastError, withBusy } from '../ui.js';
 
+// 鍵盤快捷鍵提示：Mac 顯示 ⌘S；觸控裝置用 CSS 藏起來（.kbd-hint）
+const SAVE_KEY_HINT = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘S 儲存' : 'Ctrl + S 儲存';
+
 const SHARED_INFO = {
   _general: { title: '全局規則', desc: '接在每個人格的 prompt 後面，文字與語音回覆都會用到。' },
   _voice: { title: '語音規則', desc: '語音對話（喚醒詞、錄音按鈕）時再額外接上。' },
@@ -36,7 +39,7 @@ export default function mountPrompts(root, ctx) {
   let selectToken = 0;
 
   const listCard = h('section', { class: 'card' }, loadingState());
-  const editorCard = h('section', { class: 'card' }, emptyState('選一個人格或共用規則來編輯', 'sparkle'));
+  const editorCard = h('section', { class: 'card' }, emptyState('選一個人格或共用規則來編輯。', 'sparkle'));
   const split = h('div', { class: 'split' }, listCard, editorCard);
   root.append(split);
 
@@ -48,7 +51,7 @@ export default function mountPrompts(root, ctx) {
     save = null;
     selected = null;
     split.classList.remove('has-selection');
-    editorCard.replaceChildren(emptyState('選一個人格或共用規則來編輯', 'sparkle'));
+    editorCard.replaceChildren(emptyState('選一個人格或共用規則來編輯。', 'sparkle'));
     if (list) renderList();
     window.scrollTo(0, 0);
   }
@@ -116,7 +119,7 @@ export default function mountPrompts(root, ctx) {
       ...modes,
       builtinPick,
       newPick,
-      list.modes.length || builtinPick ? null : emptyState(single() ? '找不到人格' : '還沒有任何人格，按「新增」建立第一個'),
+      list.modes.length || builtinPick ? null : emptyState(single() ? '找不到人格。' : '還沒有任何人格。按「新增」建立第一個。'),
       deleted.length ? h('div', { class: 'list-label' }, `已刪除（${deleted.length}）`) : null,
       ...deleted,
     );
@@ -129,7 +132,7 @@ export default function mountPrompts(root, ctx) {
     try {
       const { versions } = await api.get(`/api/prompts/history/${kind}/${seg(key)}`);
       if (!versions.length) {
-        body.replaceChildren(emptyState('還沒有舊版本。之後每次儲存或刪除前，都會自動保留一份（每個最多 20 版）', 'history'));
+        body.replaceChildren(emptyState('還沒有舊版本。之後每次儲存或刪除前，都會自動保留一份（每個最多 20 版）。', 'history'));
         return;
       }
       const preview = h('pre', { class: 'version-preview' }, '選擇左邊的版本來預覽');
@@ -170,7 +173,7 @@ export default function mountPrompts(root, ctx) {
       });
       body.replaceChildren(
         h('div', { class: 'version-layout' }, h('div', { class: 'version-list' }, items), preview),
-        h('div', { class: 'toolbar version-actions' }, h('span', { class: 'hint' }, '時間是該版本當初儲存的時間'), h('span', { class: 'spacer' }), loadBtn),
+        h('div', { class: 'toolbar version-actions' }, h('span', { class: 'hint' }, '時間是這個版本當初儲存的時間。'), h('span', { class: 'spacer' }), loadBtn),
       );
       items[0].click();
     } catch (err) {
@@ -290,9 +293,9 @@ export default function mountPrompts(root, ctx) {
 
     save = async () => {
       const k = key.value.trim();
-      if (!MODE_KEY_RE.test(k)) { toast('模式代號只能使用英數、底線、連字號（1~32 字）', { type: 'error' }); key.focus(); return; }
-      if (!prompt.value.trim()) { toast('Prompt 本文不可為空', { type: 'error' }); prompt.focus(); return; }
-      if (prompt.value.length > MAX_PROMPT) { toast(`Prompt 最多 ${fmtInt(MAX_PROMPT)} 字`, { type: 'error' }); return; }
+      if (!MODE_KEY_RE.test(k)) { toast('模式代號只能用英文字母、數字、底線、連字號，1～32 字。', { type: 'error' }); key.focus(); return; }
+      if (!prompt.value.trim()) { toast('人格內容是空的，寫好再儲存。', { type: 'error' }); prompt.focus(); return; }
+      if (prompt.value.length > MAX_PROMPT) { toast(`人格內容最多 ${fmtInt(MAX_PROMPT)} 字，請刪減一些再儲存。`, { type: 'error' }); return; }
       if (!ctx.isDirty()) return;
 
       const ok = await withBusy(saveBtn, () => api.put(`/api/prompts/modes/${seg(k)}`, {
@@ -303,7 +306,7 @@ export default function mountPrompts(root, ctx) {
       tracker.markSaved();
       toast(builtin ? `已建立人格檔 ${k}.md，立即生效`
         : prefill ? `已還原人格「${name.value.trim() || k}」，立即生效`
-          : isNew ? `已建立人格「${name.value.trim() || k}」，立即生效` : '已儲存，立即生效');
+          : isNew ? `已建立人格「${name.value.trim() || k}」，立即生效` : `已儲存人格「${name.value.trim() || k}」，立即生效`);
       await loadList();
       if (isNew) select({ kind: 'mode', key: k }, { force: true });
     };
@@ -323,24 +326,24 @@ export default function mountPrompts(root, ctx) {
       h('div', { class: 'card-body' }, h('div', { class: 'form' },
         h('div', { class: 'form-row' },
           h('div', { class: 'field' }, h('label', { for: 'pm-key' }, '模式代號'), key,
-            h('div', { class: 'hint' }, isNew && !prefill ? '英數、底線、連字號，1～32 字；建立後不能修改' : `也是檔名：data/prompts/modes/${historyKey}.md`)),
+            h('div', { class: 'hint' }, isNew && !prefill ? '英文字母、數字、底線、連字號，1～32 字。建立後不能修改。' : `也是檔名：data/prompts/modes/${historyKey}.md`)),
           h('div', { class: 'field' }, h('label', { for: 'pm-name' }, '顯示名稱'), name,
-            h('div', { class: 'hint' }, single() ? '在 AI 設定頁與 log 中顯示' : '在 /ai mode 選單與 log 中顯示')),
+            h('div', { class: 'hint' }, single() ? '顯示在 AI 設定頁和日誌裡。' : '顯示在 /ai mode 選單和日誌裡。')),
         ),
         h('div', { class: 'form-row' },
           h('div', { class: 'field' }, h('label', { for: 'pm-short' }, '簡短說明（選填）'), short,
-            h('div', { class: 'hint' }, '備註用，Bot 回覆時不會用到')),
+            h('div', { class: 'hint' }, '備註用，Bot 回覆時不會用到。')),
           h('div', { class: 'field' }, h('label', { for: 'pm-clear' }, '清除記憶時的回覆'), clearMsg,
-            h('div', { class: 'hint' }, '使用者執行 /ai clear 時，Bot 回的那句話')),
+            h('div', { class: 'hint' }, '使用者執行 /ai clear 時，Bot 回的那句話。')),
         ),
         single() ? null : h('div', { class: 'form-row' },
           h('div', { class: 'field' }, h('label', { for: 'pm-single' }, '設成群組人格'), singleScope,
-            h('div', { class: 'hint' }, '單一人格模式（/ai scope）能不能選這個人格；戀人類人格建議只限擁有者')),
+            h('div', { class: 'hint' }, '單一人格模式（/ai scope）能不能選這個人格。戀人類人格建議只限管理員。')),
         ),
         h('div', { class: 'field' },
           h('label', { for: 'pm-prompt' }, 'Prompt 本文'),
           prompt,
-          h('div', { class: 'toolbar' }, counter, h('span', { class: 'spacer' }), h('span', { class: 'hint' }, 'Ctrl + S 儲存')),
+          h('div', { class: 'toolbar' }, counter, h('span', { class: 'spacer' }), h('span', { class: 'hint kbd-hint' }, SAVE_KEY_HINT)),
         ),
       )),
       h('div', { class: 'card-foot' }, revertBtn, h('span', { class: 'spacer' }), saveBtn),
@@ -365,11 +368,11 @@ export default function mountPrompts(root, ctx) {
 
     save = async () => {
       if (!ctx.isDirty()) return;
-      if (text.value.length > MAX_PROMPT) { toast(`最多 ${fmtInt(MAX_PROMPT)} 字`, { type: 'error' }); return; }
+      if (text.value.length > MAX_PROMPT) { toast(`最多 ${fmtInt(MAX_PROMPT)} 字，請刪減一些再儲存。`, { type: 'error' }); return; }
       const ok = await withBusy(saveBtn, () => api.put(`/api/prompts/shared/${seg(data.key)}`, { text: text.value }));
       if (!ok) return;
       tracker.markSaved();
-      toast('已儲存，立即生效');
+      toast(`已儲存「${SHARED_INFO[data.key]?.title ?? data.key}」，立即生效`);
       loadList();
     };
 
@@ -403,7 +406,7 @@ export default function mountPrompts(root, ctx) {
         h('div', { class: 'field' },
           h('label', { for: 'ps-text' }, '規則內容'),
           text,
-          h('div', { class: 'toolbar' }, counter, h('span', { class: 'spacer' }), h('span', { class: 'hint' }, 'Ctrl + S 儲存')),
+          h('div', { class: 'toolbar' }, counter, h('span', { class: 'spacer' }), h('span', { class: 'hint kbd-hint' }, SAVE_KEY_HINT)),
         ),
       )),
       h('div', { class: 'card-foot' }, revertBtn, h('span', { class: 'spacer' }), saveBtn),
@@ -430,7 +433,7 @@ export default function mountPrompts(root, ctx) {
       save = null;
       selected = null;
       split.classList.remove('has-selection');
-      editorCard.replaceChildren(emptyState('選一個人格或共用規則來編輯', 'sparkle'));
+      editorCard.replaceChildren(emptyState('選一個人格或共用規則來編輯。', 'sparkle'));
       await loadList();
     } catch (err) {
       toastError(err);

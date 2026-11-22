@@ -65,7 +65,7 @@ export default function mountAudit(root, ctx) {
       ? entries.filter((e) => [e.action, e.source, e.bot, botNames.get(e.bot)].some((v) => (v || '').toLowerCase().includes(query)))
       : entries;
     if (!shown.length) {
-      fill(listBody, emptyState(entries.length ? '沒有符合的紀錄' : '還沒有任何操作紀錄', 'history'));
+      fill(listBody, emptyState(entries.length ? '沒有符合的紀錄。' : '還沒有任何操作紀錄。', 'history'));
       return;
     }
     fill(listBody, h('div', { class: 'table-wrap' }, h('table', { class: 'table table-stack' },

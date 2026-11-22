@@ -39,7 +39,11 @@ export default function mountLogs(root, ctx) {
     oninput: () => { query = search.value.trim().toLowerCase(); renderAll(); },
   });
   const pauseBtn = h('button', { type: 'button', class: 'btn btn-sm', onclick: () => setPaused(!paused) });
-  const clearBtn = h('button', { type: 'button', class: 'btn btn-sm', onclick: () => { entries = []; renderAll(); } }, icon('trash', 'ic-sm'), '清除畫面');
+  // 只清空這個畫面上的紀錄；伺服器上的日誌不受影響（不用垃圾桶圖示，免得以為會刪檔）
+  const clearBtn = h('button', {
+    type: 'button', class: 'btn btn-sm', title: '只清空這個畫面，Bot 上的紀錄不受影響',
+    onclick: () => { entries = []; renderAll(); },
+  }, icon('x', 'ic-sm'), '清空畫面');
   ctx.setActions(pauseBtn, clearBtn);
 
   const view = h('div', { class: 'log-view', role: 'log', tabindex: '0', 'aria-label': '執行紀錄' });
@@ -95,7 +99,7 @@ export default function mountLogs(root, ctx) {
     const shown = entries.filter(matches);
     view.replaceChildren(...(shown.length
       ? shown.map(row)
-      : [emptyState(entries.length ? '沒有符合篩選條件的紀錄' : '目前還沒有紀錄', 'terminal')]));
+      : [emptyState(entries.length ? '沒有符合篩選條件的紀錄。' : '目前還沒有紀錄。', 'terminal')]));
     if (follow) scrollBottom();
     updateFooter();
   }

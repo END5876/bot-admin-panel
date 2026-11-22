@@ -218,7 +218,7 @@ export default function mountAiSettings(root, ctx) {
       body: [
         ...warnings,
         durationBlock(t.duration),
-        t.users.length ? h('div', { class: 'rows' }, rows) : emptyState('名單是空的，目前不會禁言任何人', 'lock'),
+        t.users.length ? h('div', { class: 'rows' }, rows) : emptyState('名單是空的，目前不會禁言任何人。', 'lock'),
         h('div', { class: 'guild-block' }, h('div', { class: 'add-row add-row-2' },
           h('div', { class: 'field' }, h('span', { class: 'field-label' }, '加入名單：搜尋成員'), picker),
           addBtn,
@@ -265,7 +265,7 @@ export default function mountAiSettings(root, ctx) {
         type: 'button', class: 'btn btn-sm btn-ghost btn-danger', 'aria-label': `移除 #${e.name ?? id} 的覆寫`,
         onclick: async () => {
           const done = await withBusy(btn, () => api.del(`/api/ai/scope/channel/${seg(id)}`));
-          if (done) { row.remove(); toast('已移除頻道覆寫'); }
+          if (done) { row.remove(); toast(`#${e.name ?? id} 已改回沿用伺服器設定`); }
         },
       }, icon('trash', 'ic-sm'), '移除');
       const row = h('div', { class: 'row' },
@@ -298,8 +298,8 @@ export default function mountAiSettings(root, ctx) {
         h('dt', null, '對話模型'), h('dd', { class: 'mono' }, data.model),
         data.visionModel ? [h('dt', null, '帳單辨識模型'), h('dd', { class: 'mono' }, data.visionModel)] : null,
         h('dt', null, '每人頻率限制'), h('dd', null, limits.userRateLimit > 0 ? `${limits.userRateLimit} 次 / ${limits.userRateWindowSec} 秒` : '不限制'),
-        h('dt', null, '每人每日上限'), h('dd', null, limit(limits.userDailyBudget, 'tokens')),
-        h('dt', null, '全體每日上限'), h('dd', null, limit(limits.dailyBudget, 'tokens')),
+        h('dt', null, '每人每日上限'), h('dd', null, limit(limits.userDailyBudget, 'token')),
+        h('dt', null, '全體每日上限'), h('dd', null, limit(limits.dailyBudget, 'token')),
         h('dt', null, 'Google 搜尋'), h('dd', null, data.searchGuilds.length
           ? data.searchGuilds.map((g) => g.name ?? g.id).join('、')
           : '停用'),
@@ -359,7 +359,7 @@ export default function mountAiSettings(root, ctx) {
           });
           if (!ok) return;
           const done = await withBusy(removeBtn, () => api.del(`/api/ai/user-modes/${seg(entry.user.id)}`));
-          if (done) { toast('已移除'); load(); }
+          if (done) { toast(`已移除 ${entry.user?.name ?? entry.user?.id} 的人格指定`); load(); }
         },
       }, icon('trash', 'ic-sm'), '移除');
       const memoryBtn = h('button', {
@@ -384,7 +384,7 @@ export default function mountAiSettings(root, ctx) {
             h('thead', null, h('tr', null, h('th', null, '使用者'), h('th', null, '人格模式'), h('th', { class: 'num' }, h('span', { class: 'sr-only' }, '操作')))),
             h('tbody', null, rows),
           ))
-          : emptyState('還沒有指定任何人的人格模式', 'user'),
+          : emptyState('還沒有指定任何人的人格模式。', 'user'),
         h('div', { class: 'guild-block' }, addUserModeForm()),
       ],
       note: `優先順序：這裡的指定 → 環境變數的固定人格 → 預設模式「${modeLabel(data.defaultMode)}」。也可以在 Discord 用 /ai mode 設定。`,
@@ -443,7 +443,7 @@ export default function mountAiSettings(root, ctx) {
         avatar({ url: user.avatarUrl, name: user.name, size: 'sm' }),
         h('div', { class: 'row-main' },
           h('div', { class: 'user-cell-name truncate' }, user.displayName || user.name),
-          h('div', { class: 'user-cell-sub truncate' }, `@${user.username}${user.guildName ? ` · ${user.guildName}` : ''}`),
+          h('div', { class: 'user-cell-sub truncate' }, `@${user.username}${user.guildName ? `（${user.guildName}）` : ''}`),
         ),
         h('button', {
           type: 'button', class: 'btn btn-sm btn-ghost btn-icon', 'aria-label': '重新選擇',
@@ -468,7 +468,7 @@ export default function mountAiSettings(root, ctx) {
             avatar({ url: u.avatarUrl, name: u.name, size: 'sm' }),
             h('div', { class: 'row-main' },
               h('div', { class: 'truncate' }, u.displayName || u.name),
-              h('div', { class: 'user-cell-sub truncate' }, `@${u.username}${u.guildName ? ` · ${u.guildName}` : ''}`),
+              h('div', { class: 'user-cell-sub truncate' }, `@${u.username}${u.guildName ? `（${u.guildName}）` : ''}`),
             )))
           : [h('li', { class: 'combo-empty' }, '找不到符合的成員')]));
         paintActive();
@@ -507,7 +507,7 @@ export default function mountAiSettings(root, ctx) {
         class: 'range', type: 'range', min: 0, max: 100, step: 1, value: Math.round(effective() * 100),
         'aria-label': `${g.name} 的插話機率`,
       });
-      const resetBtn = h('button', { type: 'button', class: 'btn btn-sm' }, '重設為預設');
+      const resetBtn = h('button', { type: 'button', class: 'btn btn-sm' }, '恢復預設');
       const paint = () => {
         valueEl.textContent = `${range.value}%`;
         resetBtn.hidden = saved == null;
@@ -531,7 +531,7 @@ export default function mountAiSettings(root, ctx) {
         saved = null;
         range.value = Math.round(def * 100);
         paint();
-        toast(`${g.name} 已恢復預設機率`);
+        toast(`${g.name} 的插話機率已恢復預設`);
       });
       paint();
 
@@ -581,7 +581,7 @@ export default function mountAiSettings(root, ctx) {
       sub: `預設插話 ${Math.round(def * 100)}%`,
       iconName: 'message',
       tight: true,
-      body: blocks.length ? blocks : emptyState('Bot 還沒加入任何伺服器'),
+      body: blocks.length ? blocks : emptyState('Bot 還沒加入任何伺服器。'),
       note: data.modes
         ? 'AI 範圍：多人格時每個人用自己的人格；單一人格時整個伺服器（沒有自己覆寫的頻道）共用同一個人格與群組對話。頻道覆寫請在 Discord 用 /ai scope set channel:true 設定。' + chanceNote
         : chanceNote + (memoryScope() === 'channel'

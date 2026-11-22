@@ -1,7 +1,7 @@
 // 維護：Slash 指令同步、音樂快取、設定備份與還原、重新啟動
 
 import { h, icon, setVar } from '../dom.js';
-import { api, ApiError, botPath, fetchInit } from '../api.js';
+import { api, ApiError, botPath, fallbackError, fetchInit } from '../api.js';
 import { fmtDateTime, fmtDuration, fmtInt } from '../format.js';
 import { card, confirmDialog, errorState, loadingState, openModal, statusBadge, toast, toastError, withBusy } from '../ui.js';
 
@@ -103,7 +103,7 @@ export default function mountMaintenance(root, ctx) {
     clearBtn.addEventListener('click', async () => {
       const ok = await confirmDialog({
         title: `清除 ${ctx.botName()} 的下載快取？`,
-        message: `刪除 ${ctx.botName()} 的 ${d.downloads.count - d.downloads.inUse} 個線上歌曲下載快取（約 ${d.downloads.sizeMB} MB）。\n本地音樂不會被刪；正在播放或排在佇列裡的歌會保留。之後再點同一首歌會重新下載。`,
+        message: `刪除 ${ctx.botName()} 的 ${d.downloads.count - d.downloads.inUse} 個線上歌曲下載快取（約 ${d.downloads.sizeMB} MB）。\n音樂庫的歌不會被刪；正在播放或排在佇列裡的歌會保留。之後再點同一首歌會重新下載。`,
         confirmText: '清除下載快取',
         danger: true,
       });
@@ -123,11 +123,11 @@ export default function mountMaintenance(root, ctx) {
       body: h('div', { class: 'form' },
         h('dl', { class: 'kv' },
           h('dt', null, '線上歌曲下載快取'),
-          h('dd', null, `${fmtInt(d.downloads.count)} 個・${d.downloads.sizeMB} MB${d.downloads.inUse ? `（${d.downloads.inUse} 個使用中）` : ''}`),
-          h('dt', null, '本地音樂'),
-          h('dd', null, `${fmtInt(d.local.count)} 個・${d.local.sizeMB} MB`),
+          h('dd', null, `${fmtInt(d.downloads.count)} 個，共 ${d.downloads.sizeMB} MB${d.downloads.inUse ? `（${d.downloads.inUse} 個使用中）` : ''}`),
+          h('dt', null, '音樂庫的歌'),
+          h('dd', null, `${fmtInt(d.local.count)} 個，共 ${d.local.sizeMB} MB`),
           d.temp.count ? h('dt', null, '下載中的暫存檔') : null,
-          d.temp.count ? h('dd', null, `${fmtInt(d.temp.count)} 個・${d.temp.sizeMB} MB`) : null,
+          d.temp.count ? h('dd', null, `${fmtInt(d.temp.count)} 個，共 ${d.temp.sizeMB} MB`) : null,
           d.downloads.oldest ? h('dt', null, '最舊的下載') : null,
           d.downloads.oldest ? h('dd', null, fmtDateTime(d.downloads.oldest)) : null,
         ),
@@ -144,7 +144,7 @@ export default function mountMaintenance(root, ctx) {
         ) : null,
       ),
       foot: [h('span', { class: 'spacer' }), clearBtn],
-      note: '根目錄的音訊檔超過上限時，Bot 會從最舊的開始自動刪除——包含直接放在 data/music 根目錄的本地音樂，自己的音樂建議放在子資料夾。',
+      note: '根目錄的音訊檔超過上限時，Bot 會從最舊的開始自動刪除，包含直接放在 data/music 根目錄的歌。要一直保留的歌請放在子資料夾。',
     }));
   }
 
@@ -156,7 +156,7 @@ export default function mountMaintenance(root, ctx) {
       const res = await fetch(botPath(`/api/backup${statsBox.checked ? '?stats=1' : ''}`, ctx.bot), fetchInit());
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        throw new ApiError(res.status, data?.error || `下載失敗（HTTP ${res.status}）`);
+        throw new ApiError(res.status, data?.error || `沒有下載到備份。${fallbackError(res.status)}`);
       }
       const filename = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') || '')?.[1] || `${ctx.bot}-backup.json`;
       const url = URL.createObjectURL(await res.blob());

@@ -56,7 +56,7 @@ export default function mountStatus(root, ctx) {
       oninput: () => { cfg.text = textInput.value; paint(); },
     });
     const preview = h('div', { class: 'presence-preview' });
-    const saveBtn = h('button', { type: 'button', class: 'btn btn-primary' }, icon('save', 'ic-sm'), '套用');
+    const saveBtn = h('button', { type: 'button', class: 'btn btn-primary' }, icon('save', 'ic-sm'), '套用狀態');
 
     function paint() {
       statusBtns.forEach((b, i) => b.setAttribute('aria-checked', String(STATUS[i].value === cfg.status)));
@@ -78,12 +78,12 @@ export default function mountStatus(root, ctx) {
         next = await api.put('/api/presence', { status: cfg.status, type: cfg.type, text: cfg.text.trim() });
       });
       if (!ok) return;
-      toast('已更新 Bot 狀態');
+      toast('已套用狀態');
       renderPresence({ ...next });
     });
 
     presenceSlot.replaceChildren(card({
-      title: 'Bot 狀態',
+      title: 'Discord 上顯示的狀態',
       iconName: 'user',
       body: h('div', { class: 'form' },
         h('div', { class: 'field' }, h('span', { class: 'field-label' }, '線上狀態'),
@@ -95,7 +95,7 @@ export default function mountStatus(root, ctx) {
         h('div', { class: 'field' }, h('span', { class: 'field-label' }, '預覽'), preview),
       ),
       foot: [h('span', { class: 'spacer' }), saveBtn],
-      note: '套用後立即生效，Bot 重新啟動後也會沿用（存在 data/presence.json）。「隱身」時 Bot 看起來是離線，但功能照常運作。',
+      note: '套用後立即生效，Bot 重新啟動後也會沿用。「隱身」時 Bot 看起來是離線，但功能照常運作。',
     }));
     paint();
   }

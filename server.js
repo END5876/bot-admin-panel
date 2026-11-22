@@ -305,7 +305,8 @@ function createHandler(deps) {
         return;
       }
       logger.error('Admin', `${req.method} ${url.pathname} 失敗：`, err);
-      sendJson(res, 500, { error: `伺服器錯誤：${err.message}` });
+      // 例外訊息是給開發者看的：主句寫使用者看得懂的結果，原文放 detail（前端收在「詳細資訊」）
+      sendJson(res, 500, { error: '管理面板處理時出錯，這次沒有完成。請再試一次。', detail: err.message });
     }
   };
 }

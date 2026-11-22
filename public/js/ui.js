@@ -269,7 +269,7 @@ export function userCell(user) {
     avatar({ url: user?.avatarUrl, name: user?.name, size: 'sm' }),
     h('div', { class: 'row-main' },
       h('div', { class: 'user-cell-name truncate' }, missing ? '（找不到使用者）' : user.name),
-      h('div', { class: 'user-cell-sub mono truncate' }, missing ? user?.id ?? '' : `@${user.username} · ${user.id}`),
+      h('div', { class: 'user-cell-sub mono truncate' }, missing ? user?.id ?? '' : `@${user.username}（${user.id}）`),
     ),
   );
 }
@@ -287,14 +287,17 @@ export function statusBadge(kind, text) {
 export const loadingState = (text = '載入中…') =>
   h('div', { class: 'loading', role: 'status' }, h('span', { class: 'spinner', 'aria-hidden': 'true' }), text);
 
-export const emptyState = (text, iconName = 'info') =>
-  h('div', { class: 'empty' }, icon(iconName), h('div', null, text));
+/** action：選填的下一步按鈕（例如「新增第一條規則」），放在說明下面 */
+export const emptyState = (text, iconName = 'info', action = null) =>
+  h('div', { class: 'empty' }, icon(iconName), h('div', null, text), action);
 
 export function errorState(err, retry) {
   return h('div', { class: 'error-box', role: 'alert' },
     icon('alert'),
-    h('div', null, err?.message || '載入失敗'),
-    retry ? h('button', { type: 'button', class: 'btn', onclick: retry }, icon('refresh'), '重試') : null,
+    h('div', null, err?.message || '沒有載入成功。',
+      // 給開發者看的原始錯誤收起來，需要時再展開
+      err?.detail ? h('details', { class: 'error-detail' }, h('summary', null, '詳細資訊'), h('code', null, String(err.detail))) : null),
+    retry ? h('button', { type: 'button', class: 'btn', onclick: retry }, icon('refresh'), '再試一次') : null,
   );
 }
 

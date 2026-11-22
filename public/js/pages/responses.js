@@ -67,12 +67,15 @@ export default function mountResponses(root, ctx) {
   function renderList() {
     if (!data) return;
     const all = allEntries();
-    countEl.textContent = `完全匹配 ${Object.keys(data.exact).length} 條・包含匹配 ${Object.keys(data.contains).length} 條`;
+    countEl.textContent = `完全匹配 ${Object.keys(data.exact).length} 條，包含匹配 ${Object.keys(data.contains).length} 條`;
 
     const shown = all.filter((e) => (filterType === 'all' || e.type === filterType)
       && (!query || e.keyword.toLowerCase().includes(query) || e.messages.some((m) => m.toLowerCase().includes(query))));
     if (!shown.length) {
-      listBody.replaceChildren(emptyState(all.length ? '沒有符合的規則' : '還沒有任何規則，按右上角「新增規則」開始', 'message'));
+      listBody.replaceChildren(all.length
+        ? emptyState('沒有符合的規則。', 'message')
+        : emptyState('還沒有任何規則。', 'message',
+          h('button', { type: 'button', class: 'btn btn-primary', onclick: () => openEditor(null) }, icon('plus', 'ic-sm'), '新增第一條規則')));
       return;
     }
 
@@ -210,7 +213,7 @@ export default function mountResponses(root, ctx) {
       h('div', { class: 'field' },
         h('span', { class: 'field-label' }, '回應內容'),
         list,
-        h('div', { class: 'toolbar' }, addBtn, h('span', { class: 'hint' }, `多則回應會依序各送出一則訊息（最多 ${MAX_MESSAGES} 則）`)),
+        h('div', { class: 'toolbar' }, addBtn, h('span', { class: 'hint' }, `多則回應會依序各送出一則訊息，最多 ${MAX_MESSAGES} 則。`)),
       ),
     );
 
@@ -235,8 +238,8 @@ export default function mountResponses(root, ctx) {
         keyword: keyword.value.trim(),
         messages: [...list.querySelectorAll('textarea')].map((t) => t.value.trim()).filter(Boolean),
       };
-      if (!body.keyword) { toast('請輸入關鍵字', { type: 'error' }); keyword.focus(); return; }
-      if (!body.messages.length) { toast('至少要有一則回應', { type: 'error' }); return; }
+      if (!body.keyword) { toast('請輸入關鍵字。', { type: 'error' }); keyword.focus(); return; }
+      if (!body.messages.length) { toast('至少要有一則回應。', { type: 'error' }); return; }
       if (entry) body.from = { type: entry.type, keyword: entry.keyword };
 
       let saved = false;

@@ -107,7 +107,7 @@ export default function mountVoice(root, ctx) {
       placeholder: missingTarget ? '（目前的目標頻道找不到了，請重新選擇）' : aj.targetChannelId ? null : '選擇語音頻道…',
       ariaLabel: '自動加入的目標語音頻道',
     });
-    const applyBtn = h('button', { type: 'button', class: 'btn btn-primary', disabled: true }, '套用');
+    const applyBtn = h('button', { type: 'button', class: 'btn btn-primary', disabled: true }, '套用頻道');
     sel.addEventListener('change', () => {
       autoJoinPending = !!sel.value && sel.value !== aj.targetChannelId;
       applyBtn.disabled = !autoJoinPending;
@@ -117,7 +117,7 @@ export default function mountVoice(root, ctx) {
         data.autoJoin = await api.put('/api/autojoin', { channelId: sel.value });
       });
       if (!ok) return;
-      toast(data.autoJoin.enabled ? '已更新目標頻道，Bot 正在嘗試加入' : '已更新目標頻道（自動加入目前是關閉的）');
+      toast(data.autoJoin.enabled ? '已套用頻道，Bot 正在嘗試加入' : '已套用頻道（自動加入目前是關閉的）');
       renderAutoJoin(true);
       setTimeout(() => { if (!ctx.disposed) load(); }, 2500);
     });
@@ -206,7 +206,7 @@ export default function mountVoice(root, ctx) {
   }
 
   function joinControls(g) {
-    if (!g.voiceChannels.length) return h('span', { class: 'hint' }, '沒有語音頻道');
+    if (!g.voiceChannels.length) return h('span', { class: 'hint' }, '這個伺服器沒有語音頻道。');
     const sel = selectEl({
       options: g.voiceChannels.map((c) => ({ value: c.id, label: channelLabel(c) })),
       placeholder: '選擇語音頻道…',
@@ -305,7 +305,9 @@ export default function mountVoice(root, ctx) {
       body = built.el;
       tick = built.tick;
     } else {
-      body = h('div', { class: 'card-body' }, emptyState(v && data.musicControl !== false ? '目前沒有播放音樂，按右上角「點歌」開始' : '目前沒有播放音樂', 'music'));
+      const canEnqueue = v && data.musicControl !== false;
+      body = h('div', { class: 'card-body' }, emptyState('目前沒有播放音樂。', 'music',
+        canEnqueue ? h('button', { type: 'button', class: 'btn btn-primary', onclick: () => openEnqueue(g) }, icon('plus', 'ic-sm'), '點歌') : null));
     }
 
     const note = autoJoinNote(g);
@@ -363,9 +365,13 @@ export default function mountVoice(root, ctx) {
     const stopBtn = h('button', {
       type: 'button', class: 'btn btn-danger',
       onclick: () => act(g, stopBtn, { action: 'stop' }, {
-        confirm: { title: `停止 ${g.name} 的播放？`, message: '目前這首會停止，佇列也會清空。', confirmText: '停止並清空', danger: true },
+        confirm: {
+          title: `停止 ${g.name} 的播放？`,
+          message: m.queueLength ? `目前這首會停止，佇列的 ${m.queueLength} 首也會清空。` : '目前這首會停止。',
+          confirmText: '停止播放', danger: true,
+        },
       }),
-    }, icon('stop', 'ic-sm'), '停止');
+    }, icon('stop', 'ic-sm'), '停止播放');
     const loopSeg = segmented({
       ariaLabel: '循環模式', small: true, value: m.randomPlay ? null : m.loopMode, options: LOOP_OPTIONS,
       onChange: async (mode) => {
@@ -403,7 +409,7 @@ export default function mountVoice(root, ctx) {
       onclick: () => act(g, clearBtn, { action: 'clearQueue' }, {
         confirm: { title: `清空 ${g.name} 的 ${m.queueLength} 首佇列？`, message: '目前這首會繼續播放。', confirmText: '清空佇列', danger: true },
       }),
-    }, icon('trash', 'ic-sm'), '清空');
+    }, icon('trash', 'ic-sm'), '清空佇列');
 
     const el = h('div', null,
       h('div', { class: 'card-body' }, h('div', { class: 'form' },
@@ -424,7 +430,7 @@ export default function mountVoice(root, ctx) {
       h('div', { class: 'list-label queue-head' }, `佇列（${m.queueLength} 首）`, clearBtn),
       m.queue.length
         ? h('div', { class: 'rows queue' }, queueRows)
-        : h('div', { class: 'card-body' }, h('div', { class: 'hint' }, m.randomPlay ? '佇列是空的，播完後會隨機挑下一首本地音樂' : '佇列是空的')),
+        : h('div', { class: 'card-body' }, h('div', { class: 'hint' }, m.randomPlay ? '佇列是空的，播完後會從音樂庫隨機挑下一首。' : '佇列是空的。')),
       m.queueLength > m.queue.length ? h('div', { class: 'card-note' }, `還有 ${m.queueLength - m.queue.length} 首未顯示`) : null,
     );
     return { el, tick };
@@ -436,7 +442,7 @@ export default function mountVoice(root, ctx) {
     const tabs = segmented({
       ariaLabel: '點歌來源', value: 'lib',
       options: [
-        { value: 'lib', label: '本地音樂', icon: 'folder' },
+        { value: 'lib', label: '音樂庫', icon: 'folder' },
         { value: 'search', label: '線上搜尋', icon: 'search' },
         { value: 'url', label: '貼上網址', icon: 'link' },
       ],
@@ -468,7 +474,7 @@ export default function mountVoice(root, ctx) {
     }
 
     function libTab() {
-      const input = h('input', { class: 'input', type: 'search', placeholder: '搜尋本地音樂', 'aria-label': '搜尋本地音樂' });
+      const input = h('input', { class: 'input', type: 'search', placeholder: '搜尋音樂庫', 'aria-label': '搜尋音樂庫' });
       const list = h('div', { class: 'rows enqueue-list' }, loadingState());
       const info = h('div', { class: 'hint' });
       let timer = null;
@@ -488,7 +494,7 @@ export default function mountVoice(root, ctx) {
               ),
               addButtons(() => ({ kind: 'lib', filename: f.filename })),
             ))
-            : emptyState(input.value ? '找不到符合的歌' : 'data/music 裡沒有音樂', 'music'));
+            : emptyState(input.value ? '音樂庫裡沒有符合的歌。' : '音樂庫還沒有歌。可以改用「線上搜尋」點歌。', 'music'));
         } catch (err) {
           if (t === token) fill(list, errorState(err));
         }
@@ -502,7 +508,7 @@ export default function mountVoice(root, ctx) {
     function searchTab() {
       const input = h('input', { class: 'input', type: 'search', placeholder: '輸入關鍵字（YouTube + Bilibili）', 'aria-label': '線上搜尋關鍵字' });
       const btn = h('button', { type: 'submit', class: 'btn btn-primary' }, icon('search', 'ic-sm'), '搜尋');
-      const list = h('div', { class: 'rows enqueue-list' }, emptyState('輸入關鍵字後按搜尋', 'search'));
+      const list = h('div', { class: 'rows enqueue-list' }, emptyState('輸入關鍵字後按「搜尋」。', 'search'));
       const form = h('form', { class: 'add-inline', novalidate: true }, input, btn);
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -521,7 +527,7 @@ export default function mountVoice(root, ctx) {
               ),
               addButtons(() => ({ kind: 'online', url: r.url })),
             ))
-            : emptyState(`找不到與「${q}」相關的結果`, 'search'));
+            : emptyState(`找不到「${q}」。換個關鍵字試試。`, 'search'));
         } catch (err) {
           fill(list, errorState(err));
         } finally {

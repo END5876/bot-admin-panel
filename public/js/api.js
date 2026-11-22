@@ -5,11 +5,21 @@
 // 自動改寫成 /api/bots/<代號>/…，由面板轉發給那隻 Bot。各頁面照舊寫 /api/voice 這種路徑即可。
 
 export class ApiError extends Error {
-  constructor(status, message) {
+  /** detail：給開發者看的原始錯誤（畫面上收在「詳細資訊」） */
+  constructor(status, message, detail = null) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.detail = detail;
   }
+}
+
+/** 伺服器沒有給錯誤說明時，依狀態碼給一句白話的主句；狀態碼只放在句尾給查問題用 */
+export function fallbackError(status) {
+  if (status === 502 || status === 503 || status === 504) return '連不上 Bot，請確認它正在執行，稍後再試一次。';
+  if (status === 413) return '資料太大，這次沒有送出。';
+  if (status >= 500) return '處理時出錯，這次沒有完成。請再試一次。';
+  return `沒有完成，請再試一次。（錯誤代碼 ${status}）`;
 }
 
 const PANEL_PATHS = ['/api/login', '/api/logout', '/api/bots', '/api/audit'];
@@ -57,15 +67,15 @@ async function request(method, path, body, opts) {
   try {
     res = await fetch(target, init);
   } catch {
-    throw new ApiError(0, '無法連線到管理面板，請確認網路連線');
+    throw new ApiError(0, '連不上管理面板，請確認網路連線後再試一次。');
   }
 
   const data = await res.json().catch(() => null);
   if (res.status === 401 && path !== '/api/login') {
     onUnauthorized();
-    throw new ApiError(401, data?.error || '請先登入');
+    throw new ApiError(401, data?.error || '請先登入。');
   }
-  if (!res.ok) throw new ApiError(res.status, data?.error || `請求失敗（HTTP ${res.status}）`);
+  if (!res.ok) throw new ApiError(res.status, data?.error || fallbackError(res.status), data?.detail ?? null);
   return data;
 }
 

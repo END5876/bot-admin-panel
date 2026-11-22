@@ -68,7 +68,7 @@ export default function mountNotify(root, ctx) {
           });
           if (!ok) return;
           const done = await withBusy(removeBtn, () => api.del(`/api/notify/${seg(p.key)}/channels/${seg(c.id)}`));
-          if (done) { toast('已移除'); load(); }
+          if (done) { toast(`已移除 ${c.name ? `#${c.name}` : '這個頻道'} 的 ${p.name} 通知`); load(); }
         },
       }, icon('trash', 'ic-sm'), '移除');
       return h('div', { class: 'row' },
@@ -95,11 +95,11 @@ export default function mountNotify(root, ctx) {
         checkBtn,
       ],
       body: [
-        p.channels.length ? h('div', { class: 'rows' }, rows) : emptyState('還沒有設定通知頻道', 'bell'),
+        p.channels.length ? h('div', { class: 'rows' }, rows) : emptyState('還沒有設定通知頻道。', 'bell'),
         h('div', { class: 'guild-block' },
           groups.length
             ? h('div', { class: 'add-inline' }, sel, addBtn)
-            : h('div', { class: 'hint' }, '沒有其他可以新增的文字頻道'),
+            : h('div', { class: 'hint' }, '沒有其他可以新增的文字頻道。'),
         ),
       ],
       note: '每 30 分鐘檢查一次，發現新的限免遊戲就推播到這些頻道（同一款遊戲只通知一次）。',
@@ -127,7 +127,7 @@ export default function mountNotify(root, ctx) {
     const load = async () => {
       try {
         const { items } = await api.get(`/api/notify/${seg(p.key)}/history`);
-        if (!items.length) { fill(body, emptyState('還沒有通知過任何遊戲', 'history')); return; }
+        if (!items.length) { fill(body, emptyState('還沒有通知過任何遊戲。', 'history')); return; }
         fill(body,
           h('div', { class: 'callout' }, icon('info', 'ic-sm'),
             h('span', null, '同一款遊戲只會通知一次，紀錄保留 90 天。移除紀錄後，下次檢查時如果它還在限免，會再推播一次（例如上次推播失敗）。較舊的紀錄沒有遊戲名稱。')),
@@ -165,7 +165,7 @@ export default function mountNotify(root, ctx) {
     try {
       const { games } = await api.get(`/api/notify/${seg(p.key)}/games`);
       if (!games.length) {
-        list.replaceChildren(emptyState('目前沒有偵測到限免遊戲', 'gift'));
+        list.replaceChildren(emptyState('目前沒有偵測到限免遊戲。', 'gift'));
         return;
       }
       list.replaceChildren(
@@ -217,7 +217,7 @@ export default function mountNotify(root, ctx) {
       iconName: 'clock',
       tight: true,
       body: [
-        data.guilds.length ? h('div', { class: 'rows' }, rows) : emptyState('Bot 還沒加入任何伺服器'),
+        data.guilds.length ? h('div', { class: 'rows' }, rows) : emptyState('Bot 還沒加入任何伺服器。'),
         h('div', { class: 'guild-block' },
           h('div', { class: 'field-label' }, '報時音效（data/timeAnnouncer/）'),
           missing.length

@@ -160,7 +160,7 @@ export default function mountOverview(root, ctx) {
       stat('記憶體', `${fmtInt(d.health.memoryMB)} MB`, '程序常駐記憶體（RSS）'),
       stat('Discord 延遲', discord.ping >= 0 ? `${fmtInt(discord.ping)} ms` : '—', `WebSocket：${discord.wsStatus}`),
       stat('伺服器', fmtInt(d.guilds.length), `${fmtInt(d.voice.length)} 個語音連線`),
-      stat('今日 AI 用量', `${fmtCompact(usage.billable)} tokens`,
+      stat('今日 AI 用量', `${fmtCompact(usage.billable)} token`,
         budget > 0 ? `全體每日上限 ${fmtCompact(budget)}（已用 ${fmtPercent(usage.billable / budget)}）` : `${fmtInt(usage.total.calls)} 次呼叫`,
         budget > 0 ? budgetMeter(usage.billable, budget) : null),
     );
@@ -200,7 +200,7 @@ export default function mountOverview(root, ctx) {
             statusBadge(kind, text),
           );
         }))
-        : emptyState('Bot 目前不在任何語音頻道', 'volume'),
+        : emptyState('Bot 目前不在任何語音頻道。', 'volume'),
     });
 
     const modules = card({
@@ -235,7 +235,7 @@ export default function mountOverview(root, ctx) {
           ),
           g.memberCount != null ? h('span', { class: 'badge' }, icon('user'), fmtInt(g.memberCount)) : null,
         )))
-        : emptyState('Bot 還沒加入任何伺服器'),
+        : emptyState('Bot 還沒加入任何伺服器。'),
     });
 
     // 上一次未捕捉例外的原因（utils/crashLog.js）；重啟後 log 已經看不到，只有這裡留著

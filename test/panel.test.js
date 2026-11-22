@@ -162,7 +162,7 @@ test('panel：/api/bots 列出每隻 Bot 的狀態；連不上、金鑰不對的
   assert.deepEqual(bots.map((b) => b.id), ['main', 'dead', 'wrong-key']);
   assert.deepEqual(bots[0], { id: 'main', online: true, app: 'fake', features: ['voice'], ready: true, ping: 42, bot: { name: 'Fake' } });
   assert.equal(bots[1].online, false);
-  assert.match(bots[1].error, /無法連線/);
+  assert.match(bots[1].error, /連不上/);
   assert.equal(bots[2].online, false);
   assert.match(bots[2].error, /ADMIN_AGENT_TOKEN/);
 });
