@@ -37,8 +37,10 @@
   /* 鍵盤焦點環（實線，對比夠）與輸入框、下拉選單、關閉狀態開關的邊框（對白底 3.4:1） */
   --focus-ring: var(--accent);
   --control-border: #858B9A;
-  --radius: 12px;
-  --radius-sm: 8px;
+  /* 圓角三階（跟音樂、分帳同一套）：6 徽章與小元件／10 按鈕、輸入框、列／14 卡片與對話框 */
+  --radius: 14px;
+  --radius-sm: 10px;
+  --radius-xs: 6px;
   --sidebar-w: 236px;
   --font: "Segoe UI", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, -apple-system, sans-serif;
   --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Noto Sans Mono CJK TC", "Microsoft JhengHei", monospace;
@@ -93,7 +95,7 @@ p { margin: 0; }
 code, .mono { font-family: var(--mono); font-size: .92em; }
 code {
   padding: 1px 6px;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   background: var(--surface-hover);
 }
 button { font: inherit; color: inherit; }
@@ -322,13 +324,15 @@ svg.logo .logo-eye { fill: var(--card); }
 .tabbar a[aria-current="page"] svg.ic, .tabbar button.is-active svg.ic { stroke-width: 2.2; }
 
 /* ── 卡片 ─────────────────────────────────────────────── */
+/* 一般卡片只靠框線，不加陰影（陰影只給選單、提示、對話框這類浮在上面的東西）；
+   危險區（重新啟動、備份還原）加紅色左邊框，一眼看得出來要小心 */
 .card {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
   min-width: 0;
 }
+.card-danger { border-left: 3px solid var(--bad); }
 .card-head {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   padding: 14px 18px;
@@ -384,7 +388,6 @@ svg.logo .logo-eye { fill: var(--card); }
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
   min-width: 0;
 }
 .stat-label { font-size: 13px; color: var(--ink-soft); display: flex; align-items: center; gap: 6px; }
@@ -482,7 +485,7 @@ svg.logo .logo-eye { fill: var(--card); }
 .seg {
   display: inline-flex; gap: 2px;
   padding: 3px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: var(--surface-hover);
   max-width: 100%;
   overflow-x: auto;
@@ -490,7 +493,7 @@ svg.logo .logo-eye { fill: var(--card); }
 .seg-btn {
   display: inline-flex; align-items: center; gap: 6px;
   height: 28px; padding: 0 12px;
-  border: 0; border-radius: 7px;
+  border: 0; border-radius: var(--radius-xs);
   background: transparent;
   color: var(--ink-soft);
   font-size: 13px; font-weight: 500; white-space: nowrap;
@@ -571,7 +574,7 @@ svg.logo .logo-eye { fill: var(--card); }
 .avatar-sm { width: 24px; height: 24px; font-size: 11px; }
 .avatar-lg { width: 56px; height: 56px; font-size: 20px; }
 .avatar-square { border-radius: 10px; }
-.avatar-sm.avatar-square { border-radius: 7px; }
+.avatar-sm.avatar-square { border-radius: var(--radius-xs); }
 
 /* ── 狀態畫面 ─────────────────────────────────────────── */
 .empty {
@@ -630,7 +633,7 @@ svg.logo .logo-eye { fill: var(--card); }
   display: flex; align-items: center; gap: 10px;
   max-width: min(420px, calc(100vw - 40px));
   padding: 10px 14px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: var(--ink);
   color: var(--card);
   box-shadow: var(--shadow-lg);
@@ -664,7 +667,7 @@ dialog.modal {
   max-height: calc(100dvh - 32px);
   padding: 0;
   border: 0;
-  border-radius: 14px;
+  border-radius: var(--radius);
   background: var(--card);
   color: var(--ink);
   box-shadow: var(--shadow-lg);
@@ -841,7 +844,7 @@ details.disclosure[open] > summary svg.ic { transform: rotate(90deg); }
   padding: 9px 12px;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   box-shadow: var(--shadow);
   font-size: 12.5px;
 }
@@ -896,7 +899,7 @@ details.disclosure[open] > summary svg.ic { transform: rotate(90deg); }
 .hour {
   display: flex; align-items: center; justify-content: center; gap: 4px;
   padding: 5px 0;
-  border-radius: 7px;
+  border-radius: var(--radius-xs);
   background: var(--surface);
   font-size: 12.5px; font-variant-numeric: tabular-nums;
 }
@@ -945,7 +948,7 @@ details.disclosure[open] > summary svg.ic { transform: rotate(90deg); }
 }
 .restart-banner .restart-box {
   display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap;
-  padding: 10px 16px; border-radius: 12px;
+  padding: 10px 16px; border-radius: var(--radius);
   background: var(--card); color: var(--ink); border: 1px solid var(--line);
   box-shadow: var(--shadow-lg); font-size: 13.5px; text-align: left;
 }

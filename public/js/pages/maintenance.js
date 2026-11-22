@@ -193,6 +193,7 @@ export default function mountMaintenance(root, ctx) {
     backupSlot.replaceChildren(card({
       title: '設定備份',
       iconName: 'download',
+      className: 'card-danger',
       body: h('div', { class: 'form' },
         h('p', { class: 'hint' }, '不包含任何金鑰與 Cookie。'),
         h('label', { class: 'check', for: 'backup-stats' }, statsBox, h('span', null, '一併包含統計資料（AI 用量、播放次數、通知紀錄）')),
@@ -282,6 +283,7 @@ export default function mountMaintenance(root, ctx) {
     restartSlot.replaceChildren(card({
       title: sys.supervised ? '重新啟動' : `關閉 ${name}`,
       iconName: 'power',
+      className: 'card-danger',
       body: h('dl', { class: 'kv' },
         h('dt', null, '已運行'), h('dd', null, fmtDuration(sys.uptimeSec)),
         h('dt', null, '程序管理'), h('dd', null, sys.supervised ? statusBadge('good', '會自動重新啟動') : statusBadge('warn', '沒有 supervisor（關閉後不會自動啟動）')),
