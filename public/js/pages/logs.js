@@ -86,7 +86,7 @@ export default function mountLogs(root, ctx) {
 
   function row(e) {
     if (e.gap) {
-      return h('div', { class: 'log-row lv-debug' }, h('span'), h('span'), h('div', { class: 'log-msg' }, `…中間有 ${fmtInt(e.gap)} 則紀錄已被較新的紀錄擠掉`));
+      return h('div', { class: 'log-row lv-debug' }, h('span'), h('span'), h('div', { class: 'log-msg' }, `…中間有 ${fmtInt(e.gap)} 則較舊的紀錄沒有保留`));
     }
     return h('div', { class: ['log-row', `lv-${e.level}`] },
       h('span', { class: 'log-time' }, fmtLogStamp(e.ts)),
@@ -125,10 +125,8 @@ export default function mountLogs(root, ctx) {
 
   function updateFooter() {
     footer.replaceChildren(icon('info', 'ic-sm'), h('span', null,
-      `伺服器只保留最近 500 則・目前記錄等級 ${serverLevel}`
-      + (serverLevel !== 'debug' ? '（.env 設 LOG_LEVEL=debug 可看到除錯訊息）' : '')
-      + `・畫面上 ${fmtInt(entries.filter((e) => !e.gap).length)} 則`
-      + (paused ? '・已暫停更新' : ''),
+      `伺服器保留最近 500 則，記錄等級 ${serverLevel}。`,
+      paused ? h('br') : null, paused ? '已暫停更新' : null,
     ));
   }
 

@@ -13,19 +13,19 @@ import { confirmDialog, emptyState, errorState, loadingState, openModal, selectE
 const SAVE_KEY_HINT = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘S 儲存' : 'Ctrl + S 儲存';
 
 const SHARED_INFO = {
-  _general: { title: '全局規則', desc: '接在每個人格的 prompt 後面，文字與語音回覆都會用到。' },
-  _voice: { title: '語音規則', desc: '語音對話（喚醒詞、錄音按鈕）時再額外接上。' },
-  _group: { title: '群組規則', desc: '單一人格模式（大家共用同一個人格的群聊）時再額外接上；留空就不加。' },
+  _general: { title: '全局規則', desc: '所有人格共用，每則回覆都會套用。' },
+  _voice: { title: '語音規則', desc: '只在語音對話時套用。' },
+  _group: { title: '群組規則', desc: '只在全伺服器共用一個人格時套用。留空就不套用。' },
 };
 // 只有一個人格的 Bot（群聊）：說明改成這個
 const SHARED_INFO_SINGLE = {
-  _general: '接在人格的 prompt 後面，每則回覆都會用到。留空就不加。',
-  _group: '群聊規則，接在全局規則後面。留空時 Bot 會用內建的群聊規則。',
+  _general: '每則回覆都會套用。留空就不套用。',
+  _group: '群聊時套用。留空就用內建規則。',
 };
 // 人格 front matter 的選填欄位（空字串＝沒寫，使用預設）
 const SINGLE_SCOPE_OPTIONS = [
   { value: '', label: '不限制（預設）' },
-  { value: 'off', label: '只有擁有者能設成群組人格' },
+  { value: 'off', label: '只有管理員能設' },
 ];
 const MODE_KEY_RE = /^[A-Za-z0-9_-]{1,32}$/;
 const MAX_PROMPT = 30000;
@@ -100,7 +100,7 @@ export default function mountPrompts(root, ctx) {
     const builtinPick = list.builtin ? pick(
       { kind: 'mode', key: list.builtin.key, isNew: true, builtin: true },
       [list.builtin.name, h('span', { class: 'badge badge-accent' }, '使用中'), h('span', { class: 'badge' }, '內建')],
-      `${list.builtin.key}・還沒有人格檔，按一下從內建內容建立`,
+      '目前用內建內容，按一下可以修改',
     ) : null;
     const newPick = selected?.isNew && !selected.restore && !selected.builtin ? pick(selected, '（新的人格）', '尚未儲存') : null;
     const deleted = (list.deleted || []).map((key) => pick(
@@ -132,7 +132,7 @@ export default function mountPrompts(root, ctx) {
     try {
       const { versions } = await api.get(`/api/prompts/history/${kind}/${seg(key)}`);
       if (!versions.length) {
-        body.replaceChildren(emptyState('還沒有舊版本。之後每次儲存或刪除前，都會自動保留一份（每個最多 20 版）。', 'history'));
+        body.replaceChildren(emptyState('還沒有舊版本。每次儲存前會自動保留一份，最多 20 版。', 'history'));
         return;
       }
       const preview = h('pre', { class: 'version-preview' }, '選擇左邊的版本來預覽');
@@ -320,25 +320,25 @@ export default function mountPrompts(root, ctx) {
         h('div', { class: 'card-head-actions' }, historyBtn, deleteBtn),
       ),
       builtin ? h('div', { class: 'card-note' }, icon('info', 'ic-sm'),
-        h('span', null, `還沒有 data/prompts/modes/${prefill.key}.md，Bot 目前用的是下面這份內建人格。修改後按「建立」就會存成人格檔並立即生效。`))
+        h('span', null, '目前用的是內建人格。修改後按「建立」就會改用你的版本。'))
         : prefill ? h('div', { class: 'card-note' }, icon('info', 'ic-sm'),
-          h('span', null, '已載入這個人格刪除前的最後一版；按「建立」就會還原。也可以從「版本紀錄」挑更早的版本。')) : null,
+          h('span', null, '這是刪除前的最後一版，按「建立」就會還原。')) : null,
       h('div', { class: 'card-body' }, h('div', { class: 'form' },
         h('div', { class: 'form-row' },
           h('div', { class: 'field' }, h('label', { for: 'pm-key' }, '模式代號'), key,
-            h('div', { class: 'hint' }, isNew && !prefill ? '英文字母、數字、底線、連字號，1～32 字。建立後不能修改。' : `也是檔名：data/prompts/modes/${historyKey}.md`)),
+            isNew && !prefill ? h('div', { class: 'hint' }, '英文字母、數字、底線、連字號，1～32 字。建立後不能修改。') : null),
           h('div', { class: 'field' }, h('label', { for: 'pm-name' }, '顯示名稱'), name,
             h('div', { class: 'hint' }, single() ? '顯示在 AI 設定頁和日誌裡。' : '顯示在 /ai mode 選單和日誌裡。')),
         ),
         h('div', { class: 'form-row' },
           h('div', { class: 'field' }, h('label', { for: 'pm-short' }, '簡短說明（選填）'), short,
-            h('div', { class: 'hint' }, '備註用，Bot 回覆時不會用到。')),
+            h('div', { class: 'hint' }, '只給自己看，不影響回覆。')),
           h('div', { class: 'field' }, h('label', { for: 'pm-clear' }, '清除記憶時的回覆'), clearMsg,
             h('div', { class: 'hint' }, '使用者執行 /ai clear 時，Bot 回的那句話。')),
         ),
         single() ? null : h('div', { class: 'form-row' },
           h('div', { class: 'field' }, h('label', { for: 'pm-single' }, '設成群組人格'), singleScope,
-            h('div', { class: 'hint' }, '單一人格模式能不能選這個人格。')),
+            h('div', { class: 'hint' }, '能不能讓整個伺服器共用這個人格。')),
         ),
         h('div', { class: 'field' },
           h('label', { for: 'pm-prompt' }, 'Prompt 本文'),
@@ -384,7 +384,7 @@ export default function mountPrompts(root, ctx) {
     // 檔案是空的、Bot 正在用內建規則（只有一個人格的 Bot 的 _group）：可以載入內建內容來修改
     const builtinBox = data.builtinText && !data.text ? h('div', { class: 'callout' }, icon('info', 'ic-sm'),
       h('div', null,
-        h('div', null, '這個檔案是空的，Bot 目前用的是內建規則。要修改的話，先載入內建內容再編輯、儲存。'),
+        h('div', null, '目前用的是內建規則。要修改請先載入內建內容。'),
         h('details', { class: 'disclosure' }, h('summary', null, icon('chevron'), '內建內容'),
           h('pre', { class: 'version-preview' }, data.builtinText)),
         h('button', {

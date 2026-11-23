@@ -10,7 +10,7 @@ const TYPES = ['exact', 'contains'];
 const TYPE_LABEL = { exact: '完全匹配', contains: '包含匹配' };
 const TYPE_HINT = {
   exact: '訊息內容和關鍵字一模一樣時回覆。',
-  contains: '訊息裡含有關鍵字就回覆；有多條規則符合時，以清單中較前面的為準。',
+  contains: '訊息裡含有關鍵字就回覆。',
 };
 const MAX_MESSAGES = 10;
 const MAX_MESSAGE_LENGTH = 2000;
@@ -45,7 +45,7 @@ export default function mountResponses(root, ctx) {
       h('div', { class: 'card-head' }, h('h2', null, icon('message'), '規則列表'), countEl),
       listBody,
       h('div', { class: 'card-note' }, icon('info', 'ic-sm'),
-        h('span', null, '修改後立即生效，Discord 上的 /response 指令操作的是同一份資料。包含匹配由上往下比對、第一條符合的生效，可以用箭頭調整順序（搜尋時暫停）。')),
+        h('span', null, '包含匹配由上往下比對，第一條符合的生效。')),
     ),
   );
 

@@ -165,7 +165,7 @@ export default function mountStatus(root, ctx) {
           h('div', { class: 'toolbar' }, counter, h('span', { class: 'spacer' }), sendBtn)),
         history,
       ),
-      note: '@everyone、@here 和身分組提及不會生效。',
+      note: '不會真的通知 @everyone、@here 和身分組。',
     }));
     paint();
     paintHistory();

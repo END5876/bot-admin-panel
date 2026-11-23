@@ -68,7 +68,7 @@ export default function mountTts(root, ctx) {
         if (!key) return;
         const prev = g.model ?? '';
         modelSel.disabled = true;
-        modelHint.textContent = '切換中…（SoVITS 載入權重需要一點時間）';
+        modelHint.textContent = '切換中，約需幾秒…';
         try {
           await api.put(`/api/tts/${seg(g.id)}/model`, { key });
           g.model = key;

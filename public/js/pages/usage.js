@@ -71,7 +71,7 @@ export default function mountUsage(root, ctx) {
   );
   const breakdown = h('div', { class: 'grid grid-3' });
   // 「計費 token」的算法只寫在程式註解裡，管理員看不到：放在數字摘要下面
-  const billableNote = h('p', { class: 'hint' }, '計費 token＝總 token 扣掉 Google 搜尋帶回的內容（這部分不計費）。');
+  const billableNote = h('p', { class: 'hint' }, '不含 Google 搜尋帶回的內容。');
   const body = h('div', { class: 'page' }, statsEl, billableNote, chartCard, breakdown);
 
   ctx.setActions(refreshBtn);

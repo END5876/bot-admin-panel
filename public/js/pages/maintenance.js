@@ -63,7 +63,7 @@ export default function mountMaintenance(root, ctx) {
       title: 'Slash 指令',
       sub: d.scope === 'global' ? '全域' : `測試伺服器（DEV_GUILD_ID）`,
       iconName: 'terminal',
-      actions: [d.upToDate ? statusBadge('good', '與上次註冊一致') : statusBadge('warn', '本機有變更尚未同步'), syncBtn],
+      actions: [d.upToDate ? statusBadge('good', '與上次註冊一致') : statusBadge('warn', '有變更還沒同步'), syncBtn],
       tight: true,
       body: [
         d.remoteError ? h('div', { class: 'guild-block' }, h('div', { class: 'callout callout-warn' }, icon('alert', 'ic-sm'),
@@ -95,7 +95,7 @@ export default function mountMaintenance(root, ctx) {
     const ratio = d.limitMB ? d.rootMB / d.limitMB : 0;
     const meter = h('div', {
       class: ['meter', ratio >= 1 ? 'is-bad' : ratio >= 0.8 && 'is-warn'],
-      role: 'meter', 'aria-label': 'data/music 根目錄用量', 'aria-valuemin': 0, 'aria-valuemax': d.limitMB, 'aria-valuenow': Math.min(d.rootMB, d.limitMB),
+      role: 'meter', 'aria-label': '音樂快取用量', 'aria-valuemin': 0, 'aria-valuemax': d.limitMB, 'aria-valuenow': Math.min(d.rootMB, d.limitMB),
     }, h('span'));
     setVar(meter, '--w', `${Math.min(100, ratio * 100)}%`);
 
@@ -132,7 +132,7 @@ export default function mountMaintenance(root, ctx) {
           d.downloads.oldest ? h('dd', null, fmtDateTime(d.downloads.oldest)) : null,
         ),
         h('div', { class: 'field' },
-          h('span', { class: 'field-label' }, `根目錄用量 ${d.rootMB} / ${fmtInt(d.limitMB)} MB（MAX_CACHE_SIZE_MB）`),
+          h('span', { class: 'field-label' }, `已用 ${d.rootMB} / ${fmtInt(d.limitMB)} MB`),
           meter,
         ),
         d.downloads.largest.length ? h('div', { class: 'field' },
@@ -144,7 +144,7 @@ export default function mountMaintenance(root, ctx) {
         ) : null,
       ),
       foot: [h('span', { class: 'spacer' }), clearBtn],
-      note: '超過上限時會從最舊的開始刪，要保留的歌請放在子資料夾。',
+      note: '超過上限時從最舊的下載刪起；放進分類的歌會保留。',
     }));
   }
 
@@ -231,7 +231,7 @@ export default function mountMaintenance(root, ctx) {
       h('div', { class: 'callout' }, icon('info', 'ic-sm'), h('span', null,
         preview.supervised
           ? `${ctx.botName()} 會重新啟動（約 10～60 秒），啟動時套用這些檔案；播放中的音樂會在重新啟動後接續。`
-          : `${ctx.botName()} 沒有自動重啟：確認後會關閉，你手動啟動時才會套用這些檔案。`)),
+          : `${ctx.botName()} 不會自動重新啟動：確認後會關閉，手動啟動後才會套用。`)),
     );
     const modal = openModal({ title: `還原 ${ctx.botName()} 的設定備份`, body, wide: true, footer: [h('span', { class: 'spacer' }), cancelBtn, confirmBtn] });
     cancelBtn.addEventListener('click', () => modal.close());
@@ -286,7 +286,7 @@ export default function mountMaintenance(root, ctx) {
       className: 'card-danger',
       body: h('dl', { class: 'kv' },
         h('dt', null, '已運行'), h('dd', null, fmtDuration(sys.uptimeSec)),
-        h('dt', null, '程序管理'), h('dd', null, sys.supervised ? statusBadge('good', '會自動重新啟動') : statusBadge('warn', '沒有 supervisor（關閉後不會自動啟動）')),
+        h('dt', null, '程序管理'), h('dd', null, sys.supervised ? statusBadge('good', '會自動重新啟動') : statusBadge('warn', '不會自動重新啟動')),
         h('dt', null, 'Node.js'), h('dd', { class: 'mono' }, `${sys.node}・PID ${sys.pid}`),
         sys.logLevel ? h('dt', null, '記錄等級') : null,
         sys.logLevel ? h('dd', { class: 'mono' }, `LOG_LEVEL=${sys.logLevel}`) : null,
@@ -343,7 +343,7 @@ export default function mountMaintenance(root, ctx) {
     const paintElapsed = () => {
       const sec = Math.round((Date.now() - startedAt) / 1000);
       elapsed.textContent = timedOut
-        ? `已等待 ${fmtDuration(sec)}。請查看部署平台的 log，${name} 恢復後這裡會自動消失。`
+        ? `已等待 ${fmtDuration(sec)}。請到伺服器查看日誌，${name} 恢復後這裡會自動消失。`
         : before.supervised ? `已等待 ${sec} 秒（通常 10～60 秒）` : `已等待 ${fmtDuration(sec)}`;
     };
     paintElapsed();

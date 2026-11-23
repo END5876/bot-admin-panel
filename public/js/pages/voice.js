@@ -84,7 +84,7 @@ export default function mountVoice(root, ctx) {
   function autoJoinNote(g) {
     const aj = data.autoJoin;
     if (!aj || !aj.enabled || aj.targetGuildId !== g.id || !aj.channelName) return null;
-    return `自動加入已開啟：Bot 會常駐在「${aj.channelName}」，離開或移到其他頻道後約 10 秒會回去。`;
+    return `自動加入：${aj.channelName}`;
   }
 
   // ── 自動加入 ─────────────────────────────────────────────
@@ -163,9 +163,7 @@ export default function mountVoice(root, ctx) {
       cards.clear();
       guildSlot.replaceChildren(card({
         title: '語音連線', iconName: 'headphones',
-        body: emptyState(ctx.has('voice:join')
-          ? 'Bot 目前不在任何語音頻道。可以在下方「其他伺服器」讓 Bot 加入，或在 Discord 用 /play 點歌。'
-          : (aj ? 'Bot 目前不在任何語音頻道。可以用上方的「自動加入」設定頻道，或在 Discord 用 /play 點歌。' : 'Bot 目前不在任何語音頻道。可以在 Discord 用 /play 點歌。'), 'volume'),
+        body: emptyState('Bot 目前不在任何語音頻道。', 'volume'),
       }));
     } else {
       const els = active.map((g) => {
@@ -485,7 +483,7 @@ export default function mountVoice(root, ctx) {
         try {
           const res = await api.get(qs('/api/music/library', { q: input.value.trim() || null }));
           if (t !== token) return;
-          info.textContent = `共 ${fmtInt(res.total)} 首，依播放次數排序${res.more ? `（只顯示前 ${res.items.length} 筆，請用搜尋縮小範圍）` : ''}`;
+          info.textContent = `共 ${fmtInt(res.total)} 首，依播放次數排序。${res.more ? `只顯示前 ${res.items.length} 首，請用搜尋找。` : ''}`;
           fill(list, res.items.length
             ? res.items.map((f) => h('div', { class: 'row' },
               icon('music'),
@@ -515,7 +513,7 @@ export default function mountVoice(root, ctx) {
         e.preventDefault();
         const q = input.value.trim();
         if (!q) { input.focus(); return; }
-        fill(list, loadingState('搜尋中…（YouTube 與 Bilibili 一起查，約需幾秒）'));
+        fill(list, loadingState('搜尋中…'));
         btn.disabled = true;
         try {
           const { results } = await api.get(qs('/api/music/search', { q }));

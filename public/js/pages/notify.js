@@ -75,7 +75,7 @@ export default function mountNotify(root, ctx) {
         icon('hash'),
         h('div', { class: 'row-main' },
           h('div', { class: 'row-title' }, c.missing ? '（找不到這個頻道）' : c.name),
-          h('div', { class: 'row-sub' }, c.missing ? `${c.id}・頻道可能已刪除，或 Bot 已離開該伺服器` : c.guildName),
+          h('div', { class: 'row-sub' }, c.missing ? `ID ${c.id}，可能已刪除或 Bot 已離開伺服器` : c.guildName),
         ),
         removeBtn,
       );
@@ -130,7 +130,7 @@ export default function mountNotify(root, ctx) {
         if (!items.length) { fill(body, emptyState('還沒有通知過任何遊戲。', 'history')); return; }
         fill(body,
           h('div', { class: 'callout' }, icon('info', 'ic-sm'),
-            h('span', null, '同一款遊戲只會通知一次，紀錄保留 90 天。移除紀錄後，下次檢查時如果它還在限免，會再推播一次（例如上次推播失敗）。較舊的紀錄沒有遊戲名稱。')),
+            h('span', null, '移除紀錄後，還在限免的遊戲會再推播一次。')),
           h('div', { class: 'rows history-list' }, items.map((item) => {
             const removeBtn = h('button', { type: 'button', class: 'btn btn-sm btn-ghost btn-danger' }, icon('trash', 'ic-sm'), '移除紀錄');
             removeBtn.addEventListener('click', async () => {
@@ -160,7 +160,7 @@ export default function mountNotify(root, ctx) {
   }
 
   async function previewGames(p) {
-    const list = h('div', null, loadingState(`正在向 ${p.name} 查詢…（Steam 需要逐款查詢，可能要十幾秒）`));
+    const list = h('div', null, loadingState(`正在查詢 ${p.name}，可能要十幾秒…`));
     openModal({ title: `${p.name} 目前的限免遊戲`, body: list, wide: true });
     try {
       const { games } = await api.get(`/api/notify/${seg(p.key)}/games`);
@@ -221,7 +221,7 @@ export default function mountNotify(root, ctx) {
         h('div', { class: 'guild-block' },
           h('div', { class: 'field-label' }, '報時音效（data/timeAnnouncer/）'),
           missing.length
-            ? h('div', { class: 'callout callout-warn' }, icon('alert', 'ic-sm'), h('span', null, `缺少 ${missing.length} 個音檔，那幾個整點不會報時`))
+            ? h('div', { class: 'callout callout-warn' }, icon('alert', 'ic-sm'), h('span', null, `缺少 ${missing.length} 個音檔，那幾個整點不會報時。`))
             : null,
           hours,
         ),

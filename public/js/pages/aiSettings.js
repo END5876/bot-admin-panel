@@ -59,7 +59,7 @@ export default function mountAiSettings(root, ctx) {
         h('dt', null, '代號'), h('dd', { class: 'mono' }, p.key),
         h('dt', null, '來源'), h('dd', null, p.fromFile
           ? h('span', { class: 'mono' }, `data/prompts/modes/${p.key}.md`)
-          : '內建的通用人格（找不到人格檔）'),
+          : '內建人格'),
       ),
       note: '所有伺服器、頻道都用同一個人格。',
       more: '人格由環境變數 AI_PERSONA 指定，內容在 Bot 資料夾的 data/prompts/ 裡修改（存檔後自動生效）。',
@@ -157,11 +157,7 @@ export default function mountAiSettings(root, ctx) {
         },
       }, icon('undo', 'ic-sm'), '恢復預設')
       : null;
-    const sourceText = d.source === 'panel'
-      ? '目前用的是面板設定的時長。'
-      : d.source === 'env'
-        ? '目前用的是環境變數 AI_TIMEOUT_SECONDS 的時長。'
-        : `目前用的是預設時長（${fmtDuration(d.default)}）。`;
+    const sourceText = d.source === 'env' ? '目前由環境變數 AI_TIMEOUT_SECONDS 決定。' : '';
 
     return h('div', { class: 'guild-block' },
       h('div', { class: 'add-row' },
@@ -169,7 +165,7 @@ export default function mountAiSettings(root, ctx) {
         h('div', { class: 'field' }, h('span', { class: 'field-label' }, '單位'), unitSel),
         saveBtn,
       ),
-      h('div', { class: 'hint' }, sourceText, ` 可設 ${fmtDuration(d.min)}到 28 天。`, resetBtn ? ' ' : null, resetBtn),
+      h('div', { class: 'hint' }, sourceText ? `${sourceText} ` : null, `可設 ${fmtDuration(d.min)}～28 天。`, resetBtn ? ' ' : null, resetBtn),
     );
   }
 
@@ -205,11 +201,11 @@ export default function mountAiSettings(root, ctx) {
 
     const warnings = [
       !t.toolsEnabled
-        ? h('div', { class: 'hint' }, icon('alert', 'ic-sm'), ' 目前不會禁言任何人：AI 工具已用環境變數 AI_TOOLS=0 關閉。要啟用請移除這個設定並重新啟動 Bot。')
+        ? h('div', { class: 'hint' }, icon('alert', 'ic-sm'), ' 目前不會禁言任何人：AI 工具已用 AI_TOOLS=0 關閉。')
         : null,
       t.guildsWithoutPermission.length
         ? h('div', { class: 'hint' }, icon('alert', 'ic-sm'),
-          ` 在「${t.guildsWithoutPermission.map((g) => g.name ?? g.id).join('、')}」不會禁言：Bot 沒有「禁言成員」權限。要啟用請在該伺服器給 Bot 的身分組這個權限。`)
+          ` 在「${t.guildsWithoutPermission.map((g) => g.name ?? g.id).join('、')}」不會禁言：Bot 沒有「禁言成員」權限。`)
         : null,
     ];
 
@@ -226,7 +222,7 @@ export default function mountAiSettings(root, ctx) {
           addBtn,
         )),
       ],
-      note: '名單上的人認真辱罵 Bot 時，AI 會禁言他並回嗆一句。',
+      note: '名單上的人辱罵 Bot 時，會被禁言並被回嗆。',
       more: '依辱罵的嚴重程度（1～5 級）禁言：第 1 級禁言最長時長的 1/5，第 5 級禁言滿最長時長。開玩笑的吐槽不算；語音對話不會觸發；權限比 Bot 高的人（例如管理員）禁言不了。也可以用環境變數 AI_TIMEOUT_USERS 指定，那些人只能改環境變數移除。',
     });
   }
@@ -323,7 +319,7 @@ export default function mountAiSettings(root, ctx) {
           userCell(e.user),
           h('span', null, modeLabel(e.mode)),
           e.modeName === null ? h('span', { class: 'hint' }, `（${e.mode} 不存在，改用預設 ${data.defaultMode}）`) : null,
-          e.overridden ? h('span', { class: 'badge badge-warn' }, '已被下方指定蓋過') : null,
+          e.overridden ? h('span', { class: 'badge badge-warn' }, '已被下方設定取代') : null,
         )))
         : h('div', { class: 'hint' }, '未設定'),
       note: '來自環境變數，改了要重新啟動 Bot。',
@@ -588,9 +584,9 @@ export default function mountAiSettings(root, ctx) {
       tight: true,
       body: blocks.length ? blocks : emptyState('Bot 還沒加入任何伺服器。'),
       note: data.modes
-        ? 'AI 範圍：多人格時每個人用自己的人格；單一人格時整個伺服器（沒有自己覆寫的頻道）共用同一個人格與群組對話。頻道覆寫請在 Discord 用 /ai scope set channel:true 設定。' + chanceNote
+        ? '多人格＝每個人用自己的人格；單一人格＝整個伺服器共用一個人格。個別頻道請在 Discord 用 /ai scope 設定。' + chanceNote
         : chanceNote + (memoryScope() === 'channel'
-          ? '對話記憶以頻道為單位（群聊）：頻道清單裡的橡皮擦會清除那個頻道所有人的記憶，AI 只會參考清除之後的訊息。'
+          ? '頻道清單裡的橡皮擦會清除那個頻道所有人的對話記憶。'
           : ''),
     });
   }

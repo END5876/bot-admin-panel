@@ -157,7 +157,7 @@ export default function mountOverview(root, ctx) {
     const budget = usage.limits.dailyBudget;
     const stats = h('div', { class: 'stats ov-stats' },
       stat('運行時間', fmtDuration(d.health.uptimeSec)),
-      stat('記憶體', `${fmtInt(d.health.memoryMB)} MB`, '程序常駐記憶體（RSS）'),
+      stat('記憶體', `${fmtInt(d.health.memoryMB)} MB`),
       stat('Discord 延遲', discord.ping >= 0 ? `${fmtInt(discord.ping)} ms` : '—', `WebSocket：${discord.wsStatus}`),
       stat('伺服器', fmtInt(d.guilds.length), `${fmtInt(d.voice.length)} 個語音連線`),
       stat('今日 AI 用量', `${fmtCompact(usage.billable)} token`,
@@ -205,7 +205,7 @@ export default function mountOverview(root, ctx) {
 
     const modules = card({
       title: '模組狀態',
-      sub: '開機時回報',
+      sub: '開機時的狀態',
       iconName: 'sliders',
       className: 'ov-modules',
       tight: true,
@@ -253,7 +253,7 @@ export default function mountOverview(root, ctx) {
         ),
       ),
       tight: true,
-      note: '程序已自動重新啟動，這裡只保留最近一次。',
+      note: '只顯示最近一次。',
     }) : null;
 
     // 原生 replaceChildren 會把 null 變成文字「null」，沒有崩潰紀錄時不要傳進去

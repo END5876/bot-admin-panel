@@ -162,8 +162,8 @@ export function freshness({ onStaleChange } = {}) {
       fails += 1;
       if (fails < 2) return;
       text.textContent = lastOk
-        ? `無法更新狀態（${fmtTime(lastOk)} 之後的資料沒有取得），正在重試…`
-        : '無法更新狀態，正在重試…';
+        ? `暫時連不上，畫面停在 ${fmtTime(lastOk)} 的資料，正在重新連線…`
+        : '暫時連不上，正在重新連線…';
       setStale(true);
     },
   };

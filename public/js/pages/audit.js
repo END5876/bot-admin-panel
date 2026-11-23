@@ -39,7 +39,7 @@ export default function mountAudit(root, ctx) {
       listBody,
       foot,
       h('div', { class: 'card-note' }, icon('info', 'ic-sm'),
-        h('span', null, '只記錄從管理面板做的變更與登入；Discord 指令的操作請看各 Bot 的「日誌」。來源是連線的 IP（IPv6 以 /64 顯示）。')),
+        h('span', null, '只記錄管理面板上的操作與登入。')),
     ),
   );
 
