@@ -1,0 +1,11 @@
+# Dependabot：每月檢查 Node 映像，有新版就開 PR（不會直接改 main，所以不會觸發部署）。
+# 大版本（node:22 → 24）不自動提，升級要配合 package.json 的 engines 一起做。
+version: 2
+updates:
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: monthly
+    ignore:
+      - dependency-name: node
+        update-types: [version-update:semver-major]

@@ -1,4 +1,5 @@
-FROM node:22-slim
+# 基底映像固定到 digest，每次建置內容一致；新版由 Dependabot 每月開 PR 更新
+FROM node:22-slim@sha256:be979e5523c76fa4d5ca4ebd3099078f220aa47ec39c48ad5b5df9314debd6eb
 WORKDIR /app
 ENV NODE_ENV=production
 # 沒有任何 npm 依賴（只用 Node 內建模組），不需要 npm ci
