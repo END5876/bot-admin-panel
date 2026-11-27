@@ -6,11 +6,17 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "lint": "eslint .",
     "test": "node --test \"test/*.test.js\"",
-    "check": "node --check server.js && npm test"
+    "check": "node --check server.js && npm run lint && npm test"
   },
   "engines": {
     "node": ">=22"
   },
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "globals": "^17.14.0"
+  }
 }

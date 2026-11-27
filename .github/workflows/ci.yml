@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # 只有 ESLint 這類開發工具；正式映像不跑 npm ci（面板執行時沒有 npm 依賴）
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+
+  # 建置正式環境用的映像並冒煙測試：VPS 上的 autodeploy 也是用同一個 Dockerfile 建置
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t admin-panel:ci .
+      - name: Smoke test
+        run: |
+          docker run -d --name ap -p 3940:3940 -e ADMIN_PASSWORD=ci-password-123456 admin-panel:ci
+          for i in $(seq 1 20); do curl -fs localhost:3940/healthz && break; sleep 1; done
+          echo
+          curl -fs localhost:3940/healthz | grep -q '"ok":true'
+          # 網頁與登入
+          curl -fs -o /dev/null localhost:3940/
+          test "$(curl -s -o /dev/null -w '%{http_code}' localhost:3940/api/bots)" = 401
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H 'x-mousebot-admin: 1' -H 'content-type: application/json' \
+            -d '{"password":"ci-password-123456"}' localhost:3940/api/login)" = 200
+          # 服務以 node（非 root）身分執行，Session 金鑰寫得進資料目錄
+          test "$(docker exec ap sh -c 'stat -c %U /proc/1')" = node
+          test "$(docker exec ap stat -c %U /app/data/admin-session-secret)" = node
+          # 映像裡不該有開發用的東西
+          # （不用「! 指令」：set -e 不會因為 ! 開頭的指令失敗而停下）
+          if docker exec ap sh -c 'test -e /app/node_modules || test -e /app/test'; then echo "映像裡有 node_modules 或 test"; exit 1; fi
+          # 映像內建的 HEALTHCHECK 要能變成 healthy（VPS 的 autodeploy 靠它判斷部署成功）
+          for i in $(seq 1 30); do s=$(docker inspect -f '{{.State.Health.Status}}' ap); [ "$s" = healthy ] && break; sleep 3; done
+          test "$s" = healthy
+          docker logs ap
+          docker rm -f ap

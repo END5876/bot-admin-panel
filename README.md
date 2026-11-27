@@ -12,7 +12,7 @@ Discord Bot 的網頁管理面板：**一個網頁管理多隻 Bot**（目前是
                               操作紀錄     └─▶ …之後的 Bot
 ```
 
-- **面板（這個服務）**：網頁、登入（密碼＋Cookie）、登入限流、操作紀錄。沒有任何 npm 依賴。
+- **面板（這個服務）**：網頁、登入（密碼＋Cookie）、登入限流、操作紀錄。執行時沒有任何 npm 依賴。
 - **Bot 的管理 API**（各 Bot 的 `admin/agent.js` 與 `admin/api/`）：真正執行設定與操作。各模組的設定快取在 Bot 的記憶體裡、
   語音連線與播放佇列也只存在 Bot 程序內，所以 API 必須留在 Bot 裡，直接呼叫各模組的函式，記憶體與 `data/` 檔案才會一致。
 - 瀏覽器只跟面板說話；面板帶著金鑰（`Authorization: Bearer`）把 `/api/bots/<代號>/…` 轉發到那隻 Bot 的 `/api/…`。
@@ -68,8 +68,9 @@ Discord Bot 的網頁管理面板：**一個網頁管理多隻 Bot**（目前是
 ## 執行
 
 ```bash
-npm start        # 本機：開啟 http://localhost:3940/
-npm test
+npm start        # 本機：開啟 http://localhost:3940/（不需要 npm install）
+npm install      # 只有 ESLint 等開發工具
+npm run check    # 語法、lint、測試（CI 也跑這些，另外建置映像做冒煙測試）
 ```
 
 本機開發時讓 Bot 的管理 API 用不同的 port（例如 Mousebot `ADMIN_PORT=3941`、lite `ADMIN_PORT=3942`），

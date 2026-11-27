@@ -2,6 +2,20 @@
 # 大版本（node:22 → 24）不自動提，升級要配合 package.json 的 engines 一起做。
 version: 2
 updates:
+  # 只有 ESLint 等開發工具（正式映像不裝 npm 套件）：每月一次、合成一個 PR
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      dev-tools:
+        patterns: ['*']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+
   - package-ecosystem: docker
     directory: /
     schedule:

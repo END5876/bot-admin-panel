@@ -1,7 +1,5 @@
 'use strict';
-// 面板沒有 npm 依賴；要跑 lint 時借用 Mousebot 的 eslint：
-//   npx --prefix ../Mousebot eslint -c eslint.config.js .
-// （或在這裡 npm i -D eslint @eslint/js globals 後執行 npx eslint .）
+// npm run lint（ESLint 是開發用套件，正式映像不安裝；面板執行時沒有 npm 依賴）
 
 const js = require('@eslint/js');
 const globals = require('globals');
